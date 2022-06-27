@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-kube-testing
+  namespace: testing
+  labels:
+    enviroment: testing # label with key is enviroment and value is testing
+    project: kubernetes-series
+spec:
+  containers:
+    - image: 080196/hello-kube
+      name: hello-kube
+      ports:
+        - containerPort: 3000
+          protocol: TCP
