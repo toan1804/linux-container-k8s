@@ -1,5 +1,9 @@
 {
     "yaml.schemas": {
-        "kubernetes://schema/v1%40service": "file:///d%3A/k8s-test/hello-service.yaml"
+        "kubernetes://schema/v1%40service": [
+            "file:///d%3A/k8s-test/hello-service.yaml",
+            "file:///d%3A/k8s-test/pv_gcepd.yaml",
+            "file:///d%3A/k8s-test/pvc.yaml"
+        ]
     }
 }
