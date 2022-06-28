@@ -54,7 +54,7 @@ ls /sys/fs/cgroup/memory/my-process
 
 Ta sẽ thấy khá nhiều file, đây là những file định nghĩa limit của process.
 
-![alt text for screen readers](D:\k8s-test\images\cgroup_myprocess.PNG)
+![alt text for screen readers](images\cgroup_myprocess.PNG)
 
 Ví dụ, ta giới hạn memory cho process là 50Mb, ta điều chỉnh tham số trong `memory.kmem.limit_in_bytes` như sau:
 
@@ -97,7 +97,7 @@ Container runtime được chia ra làm hai loại:
 
 **Một vài high level container runtime còn bao gồm cả chức năng đóng gói container thành container image và chuyển nó lên container registry**.
 
-<img title="" src="file:///D:/k8s-test/images/container_runtime.png" alt="a" data-align="center">
+<img title="" src="images/container_runtime.png" alt="a" data-align="center">
 
 > Container image sẽ lưu tất cả những thứ ta cần để ta chạy một container, ta chỉ cần tải container image và dùng nó để run container, thay vì phải tạo container từ đầu và cài nhiều thứ.
 
@@ -105,7 +105,7 @@ Container runtime được chia ra làm hai loại:
 
 ##### Low-level container runtime
 
-<img title="" src="file:///D:/k8s-test/images/low_level_container_runtime.png" alt="a" data-align="center">
+<img title="" src="images/low_level_container_runtime.png" alt="a" data-align="center">
 
 Các công việc chính mà low level container runtime sẽ làm:
 
@@ -153,7 +153,7 @@ sudo cgdelete -r -g cpu,memory:$UUID
 
 ##### High level container runtime
 
-<img src="file:///D:/k8s-test/images/high_level_container_runtime.png" title="" alt="a" data-align="center">
+<img src="images/high_level_container_runtime.png" title="" alt="a" data-align="center">
 
 > Trong khi low level container runtime tập trung cho việc tạo và xóa container, thì high level container runtime sẽ tập trung cho việc quản lý nhiều container, vận chuyển và quản lý container images, tải và giải nén container image để chuyển xuống cho low level container runtime.
 
@@ -170,13 +170,13 @@ Một thằng high level container runtime phổ biến chắc có lẽ là `co
 
 ##### K8s architecture
 
-<img src="file:///D:/k8s-test/images/k8s_architecture.png" title="" alt="a" data-align="center">
+<img src="images/k8s_architecture.png" title="" alt="a" data-align="center">
 
 Một kubernetes cluster sẽ bao gồm một master node và một hoặc nhiều worker node.
 
 Với master node có nhiệm vụ chính là quản lý cluster, phân phối và quản lý container tới từng worker node. Worker node có nhiệm vụ chính là nơi chứa các container để chạy ứng dụng.
 
-<img src="file:///D:/k8s-test/images/k8s_architecture_details.png" title="" alt="a" data-align="center">
+<img src="images/k8s_architecture_details.png" title="" alt="a" data-align="center">
 
 Kubernetes master sẽ bao gồm 4 component:
 
@@ -195,7 +195,7 @@ Kubernetes worker node sẽ bao gồm 3 thành phần:
 
 ##### K8s work with container runtime
 
-<img src="file:///D:/k8s-test/images/k8s_with_container_runtime.png" title="" alt="a" data-align="center">
+<img src="images/k8s_with_container_runtime.png" title="" alt="a" data-align="center">
 
 K8s giao tiếp với container runtime thông qua `kubelet`.  `Kubelet` sẽ tương tác với container runtime ở trên worker node thông qua một layer tên là Container Runtime Interface (CRI).
 
