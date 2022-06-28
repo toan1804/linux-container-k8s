@@ -54,7 +54,7 @@ ls /sys/fs/cgroup/memory/my-process
 
 Ta sẽ thấy khá nhiều file, đây là những file định nghĩa limit của process.
 
-![alt text for screen readers](images\cgroup_myprocess.PNG)
+<img src="images/cgroup_myprocess.PNG" title="" alt="a" data-align="center">
 
 Ví dụ, ta giới hạn memory cho process là 50Mb, ta điều chỉnh tham số trong `memory.kmem.limit_in_bytes` như sau:
 
