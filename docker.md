@@ -115,3 +115,9 @@ docker exec -it <container_name|container_id> bash
 ```bash
 docker container rm <container_name|container_id>
 ```
+
+or
+
+```bash
+docker rm <container_name|container_id>
+```
