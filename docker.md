@@ -11,15 +11,15 @@
 **You can pull an image from Docker hub:**
 
 ```bash
-docker pull debian
+docker pull <image_name>
 ```
 
-*Note:* `debian` is an image from Docker hub.
+*e.g.* `docker pull debian`. This command will pull an image from Docker hub that named `debian`.
 
 **Or, you can create a custom image with `dockerfile`:**
 
 ```bash
-docker build <path/to/dockerfile> -t <name_of_image>:<version>
+docker build <path/to/dockerfile> -t <image_name>:<version>
 ```
 
 *e.g.* `docker build . -t node:latest`
@@ -86,6 +86,28 @@ or
 
 ```bash
 docker container ls -a
+```
+
+**Stop a container:**
+
+```bash
+docker stop [OPTIONS] CONTAINER [CONTAINER...]
+```
+
+*e.g.* `docker stop debian`
+
+**Start a container:**
+
+```bash
+docker start [OPTIONS] CONTAINER [CONTAINER...]
+```
+
+*e.g.* `docker start debian`
+
+**Enter the bash/cli in container:**
+
+```bash
+docker exec -it <container_name|container_id> bash
 ```
 
 **Remove a docker container:**
