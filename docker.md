@@ -22,7 +22,7 @@ docker pull debian
 docker build <path/to/dockerfile> -t <name_of_image>:<version>
 ```
 
-e.g.: `docker build . -t node:latest`
+*e.g.* `docker build . -t node:latest`
 
 **Also, you can search image from Docker hub:****
 
@@ -42,4 +42,10 @@ or
 docker image ls
 ```
 
+**Remove an image in your machine:**
 
+```bash
+docker image rm <image_name|image_id>
+```
+
+*e.g.* `docker image rm test`
