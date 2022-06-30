@@ -156,7 +156,7 @@ docker volume inspect [volume_name]
 docker volume rm [volume_name]
 ```
 
-or remove all volumes not used by any container:
+or remove all unused volumes:
 
 ```bash
 docker volume prune
@@ -229,4 +229,90 @@ services:
 volumes:
   myapp:
     external: true
+```
+
+##### Docker Networking
+
+> `Docker networking` is primarily used to establish communication between Docker containers and the outside world via the host machine where the Docker daemon is running.
+
+**Network Drivers:**
+
+Docker’s networking subsystem is pluggable, using drivers. Several drivers exist by default, and provide core networking functionality:
+
+- `bridge`: The default network driver. If you don’t specify a driver, this is the type of network you are creating. **Bridge networks are usually used when your applications run in standalone containers that need to communicate.
+
+- `host`: For standalone containers, remove network isolation between the container and the Docker host, and use the host’s networking directly.
+
+- `overlay`: Overlay networks connect multiple Docker daemons together and enable swarm services to communicate with each other. You can also use overlay networks to facilitate communication between a swarm service and a standalone container, or between two standalone containers on different Docker daemons. This strategy removes the need to do OS-level routing between these containers.
+
+- `ipvlan`: IPvlan networks give users total control over both IPv4 and IPv6 addressing. The VLAN driver builds on top of that in giving operators complete control of layer 2 VLAN tagging and even IPvlan L3 routing for users interested in underlay network integration.
+
+- `macvlan`: Macvlan networks allow you to assign a MAC address to a container, making it appear as a physical device on your network. The Docker daemon routes traffic to containers by their MAC addresses. Using the `macvlan` driver is sometimes the best choice when dealing with legacy applications that expect to be directly connected to the physical network, rather than routed through the Docker host’s network stack.
+
+- `none`: For this container, disable all networking. Usually used in conjunction with a custom network driver. `none` is not available for swarm services.
+
+**Create network:**
+
+```bash
+docker network create [OPTIONS] NETWORK
+```
+
+*e.g.* `docker network create -d bridge my-bridge-network`
+
+`-d` for driver.
+
+**Inspect network:**
+
+```bash
+docker network inspect NETWORK
+```
+
+*e.g.* `docker network inspect my-bridge-network`
+
+**List networks:**
+
+```bash
+docker network ls
+```
+
+**Connect a running container to a network:**
+
+```bash
+docker network connect [OPTIONS] NETWORK CONTAINER
+```
+
+*e.g.* `docker network connect my-bridge-network node_c`
+
+**Connect a container to a network when it starts:**
+
+```bash
+docker run -itd --network=NETWORK [IMAGE_NAME|IMAGE_ID]
+```
+
+*e.g.*  `docker run -itd --network=my_bridge_network node`
+
+**Remove network:**
+
+```bash
+docker network rm NETWORK
+```
+
+or remove all unused networks:
+
+```bash
+docker network prune
+```
+
+**Networks in Docker compose:**
+
+```yaml
+...
+services:
+  app:
+    networks:
+      - api-net
+...
+networks:
+  api-net:
+    driver: host
 ```
