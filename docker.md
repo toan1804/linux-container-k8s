@@ -1,5 +1,17 @@
 ### Docker
 
+##### Check Docker info
+
+```bash
+docker info
+```
+
+##### Folder data
+
+* **In Linux:** `/var/lib/docker`
+
+* **In Windows**: `\wsl$\docker-desktop-data\mnt\wsl\docker-desktop-data\data\docker` or `%localappdata%\Docker\wsl`
+
 ##### Dockerfile
 
 > A `Dockerfile` is a text document that contains all the commands a user could call on the command line to assemble an image.
@@ -315,4 +327,18 @@ services:
 networks:
   api-net:
     driver: host
+```
+
+##### Docker utils
+
+**Get logs from a container:**
+
+```bash
+docker logs [OPTIONS] CONTAINER
+```
+
+**Get statistics of container:**
+
+```bash
+docker stats [OPTIONS] [CONTAINER...]
 ```
