@@ -6,6 +6,12 @@
 docker info
 ```
 
+**Version:**
+
+```bash
+docker version
+```
+
 ##### Docker system
 
 **Check info:**
