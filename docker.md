@@ -172,6 +172,8 @@ docker start [OPTIONS] CONTAINER [CONTAINER...]
 docker exec -it <container_name|container_id> bash
 ```
 
+or with `root`: `docker exec -it -u root <container_name|container_id> bash`
+
 **Remove a docker container:**
 
 ```bash
