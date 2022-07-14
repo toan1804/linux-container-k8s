@@ -6,6 +6,44 @@
 docker info
 ```
 
+##### Docker system
+
+**Check info:**
+
+```bash
+docker system info
+```
+
+**Show docker disk usage:**
+
+```bash
+docker system df
+```
+
+*or* more details: `docker system df -v`
+
+**Remove unused data:**
+
+*Description:* Remove all unused containers, networks, images (both dangling and unreferenced), and optionally, volumes.
+
+```bash
+docker system prune [OPTIONS]
+```
+
+##### Docker Builder
+
+**Build an image from a Dockerfile:**
+
+```bash
+docker builder build [OPTIONS] PATH | URL | -
+```
+
+**Remove build cache:**
+
+```bash
+docker builder prune
+```
+
 ##### Folder data
 
 * **In Linux:** `/var/lib/docker`
@@ -61,6 +99,12 @@ docker image rm <image_name|image_id>
 ```
 
 *e.g.* `docker image rm test`
+
+**Display detailed information on one or more images:**
+
+```bash
+docker image inspect [OPTIONS] IMAGE [IMAGE...]
+```
 
 ##### Container
 
