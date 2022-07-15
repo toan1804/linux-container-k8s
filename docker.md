@@ -26,6 +26,10 @@ When you use the `docker pull` or `docker run` commands, the required images
 
 When you use Docker, you are creating and using images, containers, networks, volumes, plugins, and other objects. This section is a brief overview of some of those objects.
 
+**Architecture with engine:**
+
+<img title="" src="images/docker_engine.png" alt="a" data-align="center">
+
 ##### Check Docker info
 
 ```bash

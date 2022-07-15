@@ -191,8 +191,6 @@ Kubernetes worker node sẽ bao gồm 3 thành phần:
 - kube-proxy
 - container runtime
 
-
-
 ##### K8s work with container runtime
 
 <img src="images/k8s_with_container_runtime.png" title="" alt="a" data-align="center">
