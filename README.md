@@ -1,5 +1,17 @@
 # Kubernetes Tutorial
 
+### Definition:
+
+- Open-source platform for managing containerized workloads and services
+
+- Makes it easy to orchestrate many containers on many hosts, scale them as microservices, and deploy rollouts and rollbacks
+
+- Is a set of APIs to deploy containers on a set of nodes called a cluster
+
+- Divided into a set of primary components that run as the control plane and a set of nodes that run containers
+
+- You can decribe a set of applications and how they should interact with each other and Kubernetes figures how to make that happen 
+
 ### Install:
 
 - Install docker-desktop
@@ -32,8 +44,6 @@ minikube start
 ```bash
 kubectl cluster-info
 ```
-
-
 
 ### Pod:
 
@@ -82,5 +92,3 @@ Check it: `curl localhost:8080`
 ```bash
 kubectl delete -f hello_pod.yaml
 ```
-
-
