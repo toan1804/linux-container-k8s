@@ -92,7 +92,49 @@ docker builder prune
 
 ##### Docker image
 
+<img src="file:///D:/K8s/k8s-test/images/container_layers.png" title="" alt="a" data-align="center">
+
 > A `Docker container image` is a lightweight, standalone, executable package of software that includes everything needed to run an application: code, runtime, system tools, system libraries and settings.
+
+- A container image is structured in layers. The tool you use to build the image reads instructions from a file called the container manifest. In the case of a Docker formatted container image, that's called a Dockerfile.
+
+- Each instruction in the Dockerfile specifies a layer inside the container image. Each layer is read only. When a container runs from this image, it will also have a writable ephemeral topmost layer.
+
+*Example with four commands, each of which creates a layer:*
+
+*Layer 1: Base Image*
+
+<img title="" src="file:///D:/K8s/k8s-test/images/container_exp_layer_1.png" alt="a" data-align="center">
+
+*Layer 2: COPY command*
+
+<img src="file:///D:/K8s/k8s-test/images/container_layer_2.png" title="" alt="a" data-align="center">
+
+*Layer 3: RUN command*
+
+<img src="file:///D:/K8s/k8s-test/images/container_layer_3.png" title="" alt="a" data-align="center">
+
+*Layer 4: CMD command*
+
+<img src="file:///D:/K8s/k8s-test/images/container_layer_4.png" title="" alt="a" data-align="center">
+
+*Container from Image:*
+
+- When you launch a new container from an image, the container runtime adds a new writable layer on the top of the underlying layers. This layer is often called the container layer. 
+
+- All changes made to the running container, such as writing new files, modifying existing files, and deleting files, are written to this thin writable container layer. In the ephemeral, when the container is deleted, the contents of this writable layer are lost forever. The underlying container image itself remains unchanged.
+
+<img src="file:///D:/K8s/k8s-test/images/container_layer_process.png" title="" alt="a" data-align="center">
+
+Containers promote smaller shared images:
+
+- Because each container has its own writable container layer and all changes are stored in this layer, multiple containers can share access to the same underlying image and yet have their own data state.
+
+- For example, your base application image, may be 200 megabytes, but the difference to the next point release might only be 200 kilobytes. When you build a container, instead of copying the whole image, it creates a layer with just the differences. When you run a container, the container runtime pulls down the layers it needs. When you update, you only need to copy the difference. 
+  
+  This is much faster than running a new virtual machine.
+
+<img src="file:///D:/K8s/k8s-test/images/container_shared_image.png" title="" alt="a" data-align="center">
 
 **You can pull an image from Docker hub:**
 

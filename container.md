@@ -1,8 +1,28 @@
 ### Container
 
-> Container là một công nghệ mà cho phép chúng ta chạy một chương trình trong một môi trường độc lập hoàn toàn với các chương trình còn lại trên cùng một máy tính.
+**Container components:**
 
-Thực tế, container được xây dựng trên 1 vài tính năng của linux, mà chủ yếu là namespaces và control groups(cgroups).
+Container use a varied set of Linux technologies
+
+<img src="file:///D:/K8s/k8s-test/images/container_components.png" title="" alt="a" data-align="center">
+
+Containers are not an intrinsic primitive feature of Linux. Instead, their power to isolate workloads is derived from the composition of several technologies.
+
+- One foundation is the Linux process. Each Linux process has its own virtual memory address space separate from all others. In Linux processes are rapidly created and destroyed.
+
+- Containers use Linux namespaces to control what an application can see. Process Id numbers, directory trees, IP addresses, and more.
+
+- Containers used Linux cgroups to control what an application can use, its
+  
+  maximum consumption of CPU time, memory, IO bandwidth, and other resources.
+
+- Finally, containers use union file systems to efficiently encapsulate applications 
+  
+  and their dependencies into a set of clean minimal layers.
+  
+  ---
+
+> Container là một công nghệ mà cho phép chúng ta chạy một chương trình trong một môi trường độc lập hoàn toàn với các chương trình còn lại trên cùng một máy tính.
 
 ##### Linux namespaces
 
