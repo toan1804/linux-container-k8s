@@ -4,7 +4,7 @@
 
 Container use a varied set of Linux technologies
 
-<img src="file:///D:/K8s/k8s-test/images/container_components.png" title="" alt="a" data-align="center">
+<img src="images/container_components.png" title="" alt="a" data-align="center">
 
 Containers are not an intrinsic primitive feature of Linux. Instead, their power to isolate workloads is derived from the composition of several technologies.
 

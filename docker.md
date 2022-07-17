@@ -92,7 +92,7 @@ docker builder prune
 
 ##### Docker image
 
-<img src="file:///D:/K8s/k8s-test/images/container_layers.png" title="" alt="a" data-align="center">
+<img src="images/container_layers.png" title="" alt="a" data-align="center">
 
 > A `Docker container image` is a lightweight, standalone, executable package of software that includes everything needed to run an application: code, runtime, system tools, system libraries and settings.
 
@@ -104,19 +104,19 @@ docker builder prune
 
 *Layer 1: Base Image*
 
-<img title="" src="file:///D:/K8s/k8s-test/images/container_exp_layer_1.png" alt="a" data-align="center">
+<img title="" src="images/container_exp_layer_1.png" alt="a" data-align="center">
 
 *Layer 2: COPY command*
 
-<img src="file:///D:/K8s/k8s-test/images/container_layer_2.png" title="" alt="a" data-align="center">
+<img src="images/container_layer_2.png" title="" alt="a" data-align="center">
 
 *Layer 3: RUN command*
 
-<img src="file:///D:/K8s/k8s-test/images/container_layer_3.png" title="" alt="a" data-align="center">
+<img src="images/container_layer_3.png" title="" alt="a" data-align="center">
 
 *Layer 4: CMD command*
 
-<img src="file:///D:/K8s/k8s-test/images/container_layer_4.png" title="" alt="a" data-align="center">
+<img src="images/container_layer_4.png" title="" alt="a" data-align="center">
 
 *Container from Image:*
 
@@ -124,7 +124,7 @@ docker builder prune
 
 - All changes made to the running container, such as writing new files, modifying existing files, and deleting files, are written to this thin writable container layer. In the ephemeral, when the container is deleted, the contents of this writable layer are lost forever. The underlying container image itself remains unchanged.
 
-<img src="file:///D:/K8s/k8s-test/images/container_layer_process.png" title="" alt="a" data-align="center">
+<img src="images/container_layer_process.png" title="" alt="a" data-align="center">
 
 Containers promote smaller shared images:
 
@@ -134,7 +134,7 @@ Containers promote smaller shared images:
   
   This is much faster than running a new virtual machine.
 
-<img src="file:///D:/K8s/k8s-test/images/container_shared_image.png" title="" alt="a" data-align="center">
+<img src="images/container_shared_image.png" title="" alt="a" data-align="center">
 
 **You can pull an image from Docker hub:**
 
