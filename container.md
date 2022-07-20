@@ -1,4 +1,4 @@
-### Container
+# Container
 
 **Container components:**
 
@@ -8,23 +8,19 @@ Container use a varied set of Linux technologies
 
 Containers are not an intrinsic primitive feature of Linux. Instead, their power to isolate workloads is derived from the composition of several technologies.
 
-- One foundation is the Linux process. Each Linux process has its own virtual memory address space separate from all others. In Linux processes are rapidly created and destroyed.
+- One foundation is the Linux process. Each Linux process has its own virtual memory address space separate from all others. In Linux, processes are rapidly created and destroyed.
 
 - Containers use Linux namespaces to control what an application can see. Process Id numbers, directory trees, IP addresses, and more.
 
-- Containers used Linux cgroups to control what an application can use, its
-  
-  maximum consumption of CPU time, memory, IO bandwidth, and other resources.
+- Containers used Linux cgroups to control what an application can use, its maximum consumption of CPU time, memory, IO bandwidth, and other resources.
 
-- Finally, containers use union file systems to efficiently encapsulate applications 
-  
-  and their dependencies into a set of clean minimal layers.
+- Finally, containers use union file systems to efficiently encapsulate applications and their dependencies into a set of clean minimal layers.
   
   ---
 
 > Container là một công nghệ mà cho phép chúng ta chạy một chương trình trong một môi trường độc lập hoàn toàn với các chương trình còn lại trên cùng một máy tính.
 
-##### Linux namespaces
+### Linux namespaces
 
 Đây là một tính năng của Linux cho phép ta tạo ra một virtualize system, khá giống với chức năng của các công cụ virtual machine. Đây là tính năng chính giúp process của ta tách biệt hoàn toàn với các process còn lại.
 
@@ -46,7 +42,7 @@ Check các tiến trình trong namespaces vừa tạo:
 ps aux
 ```
 
-##### Control groups(cgroups)
+### Control groups(cgroups)
 
 > **cgroups** (abbreviated from **control groups**) is a [Linux kernel](https://en.wikipedia.org/wiki/Linux_kernel "Linux kernel") feature that limits, accounts for, and isolates the resource usage (CPU, memory, disk I/O, network, etc.) of a collection of processes.
 
@@ -106,7 +102,7 @@ sudo cgexec -g cpu,memory:my-process unshare -uinpUrf --mount-proc sh -c "/bin/h
 
 ---
 
-### Container Runtime
+# Container Runtime
 
 > Container runtime là một công cụ đóng vai trò quản lý tất cả quá trình running của một container, bao gồm tạo và xóa container, đóng gói và chia sẻ container.
 
@@ -123,7 +119,7 @@ Container runtime được chia ra làm hai loại:
 
 > Container registry là chỗ dùng chứa container image.
 
-##### Low-level container runtime
+### Low-level container runtime
 
 <img title="" src="images/low_level_container_runtime.png" alt="a" data-align="center">
 
@@ -171,7 +167,7 @@ sudo cgexec -g cpu,memory:$UUID unshare -uinpUrf --mount-proc sh -c "/bin/hostna
 sudo cgdelete -r -g cpu,memory:$UUID
 ```
 
-##### High level container runtime
+### High level container runtime
 
 <img src="images/high_level_container_runtime.png" title="" alt="a" data-align="center">
 
