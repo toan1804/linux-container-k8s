@@ -1,5 +1,19 @@
 # Kubernetes Tutorial
 
+### Kubernetes concepts
+
+There are two elements to Kubernetes objects
+
+<img title="" src="images/k8s_elements.PNG" alt="a" data-align="center">
+
+Containers in a Pod share resources
+
+<img title="" src="images/container_in_pod.PNG" alt="a" data-align="center">
+
+Desired state compared to current state
+
+<img title="" src="images/k8s_compared_state.PNG" alt="a" data-align="center">
+
 ### Definition:
 
 - Open-source platform for managing containerized workloads and services
