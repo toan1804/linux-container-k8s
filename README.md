@@ -80,13 +80,13 @@ spec:
 
 - Deployments ensure that sets of Pods are running
 
-- ![a](images\k8s_deployments_scheduler.PNG)
+- <img src="images\k8s_deployments_scheduler.PNG" title="" alt="a" data-align="center">
 
-- ![a](images\k8s_deployments_cm.PNG)
+- <img src="images\k8s_deployments_cm.PNG" title="" alt="a" data-align="center">
 
-- ![a](images\k8s_deployments_fail_one_node.PNG)
+- <img src="images\k8s_deployments_fail_one_node.PNG" title="" alt="a" data-align="center">
 
-- ![a](images\k8s_deployments_create_pod_again.PNG)
+- <img src="images\k8s_deployments_create_pod_again.PNG" title="" alt="a" data-align="center">
 
 **Namespaces**
 
@@ -145,6 +145,24 @@ ReplicaSets, Deployments, Replication Controllers, StatefulSets, DaemonSets, Job
 - If you need to run certain Pods on all the nodes within the cluster or on a selection of nodes, use DaemonSet. DaemonSet ensures that a specific Pod is always running on all or some subset of the nodes. If new nodes are added, DaemonSet will automatically set up Pods in those nodes with the required specification. The word "daemon" is a computer science term meaning a non-interactive process that provides useful services to other processes. A Kubernetes cluster might use a DaemonSet to ensure that a logging agent like fluentd is running on all nodes in the cluster.
 
 - The Job controller creates one or more Pods required to run a task. When the task is completed, Job will then terminate all those Pods. A related controller is CronJob, which runs Pods on a time-based schedule.
+
+### Kubectl Command
+
+Kubectl is a utility used by administrators to control Kubernetes clusters. You use it to communicate with the kube-apiserver on your control plane. Kubectl transforms your command line entries into API calls that it sends to the kube-apiserver within your selected Kubernetes cluster.
+
+The kubectl command syntax has several parts:
+
+<img src="images/kubectl_command.PNG" title="" alt="a" data-align="center">
+
+<img src="images/kubectl_type.PNG" title="" alt="a" data-align="center">
+
+<img src="images/kubectl_name.PNG" title="" alt="a" data-align="center">
+
+<img src="images/kubectl_flag.PNG" title="" alt="a" data-align="center">
+
+**Introspection**
+
+
 
 ### Install:
 
