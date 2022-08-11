@@ -61,7 +61,6 @@ spec:
     containers:
     - name: nginx
       image: nginx:latest
-
 ```
 
 **Labels**
@@ -162,7 +161,47 @@ The kubectl command syntax has several parts:
 
 **Introspection**
 
+use kubectl to gather info about  your app:
 
+<img title="" src="images/kubectl_introspection.PNG" alt="a" data-align="center">
+
+### Deployment
+
+Deployment declare  the state of the Pods:
+
+<img title="" src="images/k8s_deployment_declare_state.PNG" alt="a" data-align="center">
+
+Deployment is a two-part process:
+
+<img title="" src="images/k8s_deployment_.PNG" alt="a" data-align="center">
+
+Deployment object file in YAML format
+
+<img title="" src="images/k8s_deployment_YAML.PNG" alt="a" data-align="center">
+
+### Job and CronJobs
+
+**Job**
+
+A Job is a Kubernetes object, like a Deployment. A Job creates one or more Pods to run a specific task reliably. In its simplest form, a Job will create one Pod and track the task completion within that Pod. When the task is completed, it will terminate the Pod and report that the Job has completed successfully.
+
+There are two main ways to define a Job; non-parallel and parallel:
+
+- Non-parallel Jobs create only one Pod at a time. Of course, that Pod is recreated if it terminates unsuccessfully. These Jobs are completed when the Pod terminates successfully or, if a completion count is defined, when the required number of completions is reached.
+
+- Parallel Jobs are Jobs that have a parallelism value defined, where multiple Pods are scheduled to work on that Job at the same time. If they also have a completion count defined, they are used for tasks that must be completed more than once. Kubernetes considers parallel Job's complete when the number of Pods that have terminated successfully reaches the completion count.
+
+<img title="" src="images/k8s_Job_YAML.PNG" alt="a" data-align="center">
+
+**CronJobs**
+
+Cron format is a commonly adopted syntax used to specify the date and time at which Jobs should be executed and repeated. 
+
+<img title="" src="images/Cron_format.PNG" alt="a" data-align="center">
+
+CronJob is a Kubernetes object that creates Jobs in a repeatable manner to a defined schedule. CronJobs are called that because they're named after cron, the standard Unix/Linux mechanism for scheduling a process. The schedule field accepts a time in the Unix/Linux standard format for specifying a CronJob.
+
+<img title="" src="images/k8s_cronjob_YAML.PNG" alt="a" data-align="center">
 
 ### Install:
 
