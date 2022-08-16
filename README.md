@@ -203,6 +203,161 @@ CronJob is a Kubernetes object that creates Jobs in a repeatable manner to a de
 
 <img title="" src="images/k8s_cronjob_YAML.PNG" alt="a" data-align="center">
 
+### Networking
+
+The kubernetes networking model relies heavily on IP addresses. Services, pods, containers, and nodes communicate using IP addresses and ports. Kubernetes provides different types of load balancing to direct traffic to the correct pods.
+
+**Pod Networking**
+
+A pod is a group of containers with shared storage and networking. This is based on the "IP-per-pod" model of kubernetes. With this model, each pod is assigned a single IP address, and the containers within a pod share the same network namespace, including that IP address.
+
+<img title="" src="images/k8s_pod_networking.png" alt="a" data-align="center">
+
+- For example, you might have a legacy application that uses nginx as a reverse-proxy for client access. The nginx container runs on TCP port 80, and the legacy application runs on TCP port 8000. Because both containers share the same networking namespace, the two containers appear as if they're installed on the same machine. The nginx container will contact the legacy application by establishing a connection to "localhost" on TCP port 8000.
+
+Each pod has a unique IP address, just like the host on a network. On a node, the pods are connected to each other through the node's root network namespace, which ensures that the pods can find and reach each other on that VM. This allows the two pods to communicate on the same node. The root network namespace is connected to the node's primary NIC.
+
+<img title="" src="images/k8s_pod_to_pod_networking.png" alt="a" data-align="center">
+
+Using the node's VM NIC the root network namespace is able to forward traffic out of the node. This means that the IP addresses on the pods must be routable on the network that the node is connected to.
+
+<img title="" src="images/k8s_pod_out_networking.png" alt="a" data-align="center">
+
+Pods can connect directly using native IP addresses or using cluster networking likes VPC(GCP or AWS):
+
+<img title="" src="images/k8s_pod_to_pod_diff_node.png" alt="a" data-align="center">
+
+#### Services
+
+**Pod vs VM**
+
+<img title="" src="images/k8s_pod_vs_VM_networking.PNG" alt="a" data-align="center">
+
+- Virtual machines and Pods have very different lifecycles. VMs are typically designed to be durable and persistent through application updates and upgrades, whereas Pods are typically terminated and replaced with newer Pods. 
+
+- As a result of new Pod deployment, the updated containerized version of the application gets a new IP address. Also, if a Pod is rescheduled for any reason, then the Pod gets a new IP address. 
+
+- This unexpected change of addresses could cause significant service disruptions in large, quickly changing environments. Pod IP addresses are ephemeral. Therefore, you need a more dependable way to locate the applications running in your cluster.
+
+- Fortunately, Kubernetes has an answer, Services.
+
+**Services**
+
+- A Kubernetes service is an object that creates a dynamic collection of IP addresses called endpoints that belong to Pods matching the Services labeled selector.
+  
+  <img title="" src="images/k8s_services.PNG" alt="a" data-align="center">
+
+-  When you create a service, that service issued a static virtual IP address from the pool of IP addresses that the cluster reserves for Services. 
+  
+  <img title="" src="images/k8s_services_static_IP.PNG" alt="a" data-align="center">
+
+- The virtual IP is durable. It is published to all nodes in the cluster. It doesn't change even if all the Pods behind it change.
+
+**Service Types and Load Balancers**
+
+There are three principal types of Services: ClusterIP, NodePort and LoadBalancer.  These services build conceptually on one another, adding functionality with each step.
+
+1. **ClusterIP**
+   
+   - The clusterIP Service is the basis of all the Kubernetes services.
+   
+   - A Kubernetes ClusterIP Service has a static IP address and operates as a traffic distributor within the cluster. But the ClusterIP Services aren't accessible by resources outside the cluster. Other pods will use this ClusterIP as their destination IP address when communicating with the Service.
+   
+   - Example:
+     
+     <img title="" src="images/k8s_service_clusterIP_YAML.png" alt="a" data-align="center">
+     
+     - Here, you create a Service object by defining its kind. If you don't specify a Service type during the creation of the service, it will default to Service type of ClusterIP.
+     
+     - Next, you use a label selector to select the Pods that were on the target application. In this case, the Pods with the label of 'app: Backend' are selected and included as endpoints for this Service.
+     
+     - You should always create a Service before creating any workloads that need to access that Service. If you create a Service before its corresponding backend workloads, such as Deployments or StatefulSets, the Pods that make up that Service get a nice bonus: they get the hostname and IP address of the Service in an environment variable. But remember that relying on environment variables for Service discovery is not as flexible as using DNS, so this practice isn't mandatory.
+     
+     - Next, you specify the port that the target containers are using. In this case, it's TCP port 6000. This Service will receive traffic on port 3306 and then remap it to 6000 as it delivers it to the target Pods. Creating, loading, or applying this manifest will create the ClusterIP Service named 'my-service'.
+     
+     <img title="" src="images/k8s_clusterIP_example.png" alt="a" data-align="center">
+     
+     - In this example, you will have frontend Pods that must be able to locate the backend Pods. When you create the Service, the cluster control plane assigns a virtual IP address, known as ClusterIP, from a reserve pool of alias IP addresses in the cluster's VPC. This IP address won't change throughout the lifespan of the Service. The cluster control plane selects Pods to include in the Service's endpoints based on the label selector on the Service and the labels on the Pods. The IP addresses of these backend Pods are matched to the target port, TCP port 6000 in this example, to create the endpoint resources that the Service forwards requests to. The ClusterIP Service will answer requests on TCP port 3306 in this example, and forward the request to backend Pods using their IP addresses and the target port as the endpoint resources.
+
+2. **NodePort**
+   
+   - In addition to the setup of a ClusterIP Service, a specific port is exposed on every node. This port is also known as NodePort, and is automatically allocated from the range of 30,000 to 32,767. In some cases, users may want to manually specify it, which is allowed as long as the value falls within that range, but is not usually necessary.<img title="" src="images/k8s_service_nodePort_YAML.png" alt="NodePortYaml" data-align="center">
+   
+   - ClusterIP is useful for internal communication within a cluster, but what about external communication? NodePort enables this. NodePort is built on top of ClusterIP Service, therefore, when you create a NodePort Service, a ClusterIP Service is automatically created in the process.
+     
+     <img title="" src="images/k8s_nodePort_work.png" alt="NodePort Work" data-align="center">
+   
+   - This Service can now be reached from outside of the cluster using the IP address of any node and the corresponding NodePort number. Traffic through this port is directed to a service on port 80 and further directed to one of the backend Pods on port 9376. 
+   
+   - NodePort Service can be useful to expose a Service to an external load balancer that you setup and manage yourself. Using this approach, you would have to deal with the node management, making sure that there are no collisions.
+
+3. **Load Balancers**
+   
+   - The LoadBalancer Service type builds on the ClusterIP Service and can be used to expose a Service to resources outside the cluster.
+     
+     <img title="" src="images/k8s_service_loadbalancer.png" alt="Service LoadBalancer" data-align="center">
+   
+   - The LoadBalancer Service can only run on the environment that support LoadBalancer like cloud environment.
+   
+   - Example onl Google cloud:
+     
+     - With GKE, the LoadBalancer Service is implemented using Google Cloud's network load balancer. When you create a LoadBalancer Service, GKE automatically provisions a Google Cloud network load balancer for inbound access to Services from outside the cluster. The traffic will be directed to the IP address of the network load balancer and then the network load balancer forwards the traffic onto the nodes for this Service.
+       
+       <img title="" src="images/k8s_service_load_balancer_YAML.png" alt="LoadBalancer Yaml" data-align="center">
+     
+     - You only need to specify the type, LoadBalancer. Google Cloud will assign a static LoadBalancer IP address that is accessible from outside your project. When you specify 'kind: Service' with 'type: LoadBalancer' in the resource manifest, GKE creates a Service of type LoadBalancer. GKE makes appropriate Google Cloud API calls to create either an external network load balancer or an internal TCP/UDP load balancer. GKE creates an internal TCP/UDP load balancer when you add the networking.GKE.io/load-balancer- type: "Internal" annotation; otherwise, GKE creates an external load balancer. You've seen how ClusterIP Services can be used within the cluster to provide a stable endpoint that allows Pods to connect to other Pods without the risk of the IP addresses changing.
+
+**Ingress Resource**
+
+- The Ingress resource operates one layer higher than Services. In fact, it operates a bit like a service for Services. Ingress is not a Service or even a type of Service, it is a collection of rules that direct external inbound connections to a set of Services within the cluster.
+
+- Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource.
+
+<img title="" src="images/k8s_ingress_resource_example.png" alt="Ingress Resource" data-align="center">
+
+- An Ingress may be configured to give Services externally-reachable URLs, load balance traffic, terminate SSL / TLS, and offer name-based virtual hosting. An Ingress controller is responsible for fulfilling the Ingress, usually with a load balancer, though it may also configure your edge router or additional frontends to help handle the traffic.
+
+- Prerequisites: You must have an [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers) to satisfy an Ingress. Only creating an Ingress resource has no effect. You may need to deploy an Ingress controller such as [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/). You can choose from a number of [Ingress controllers](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers).
+
+- Example:
+  
+  - ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+        name: my-Ingress
+    spec:
+        rules:
+        - host: demo.example.com
+          http:
+            paths:
+            -path: /demopath
+              backend:
+                serviceName: demo1
+                servicePort: 80
+        - host: lab.user.com
+          http:
+            paths:
+            -path: /labpath
+              backend:
+                serviceName: lab1
+                servicePort: 80
+    ```
+  
+  - <img title="" src="images/k8s_ingress_example.png" alt="Ingress Example" data-align="center">
+
+- Updating an Ingress
+  
+  - ```bash
+    kubectl edit ingress [NAME]
+    ```
+  
+  - ```bash
+    kubectl replace -f [FILE]
+    ```
+
+
+
 ### Install:
 
 - Install docker-desktop
