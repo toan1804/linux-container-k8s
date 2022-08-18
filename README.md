@@ -397,7 +397,6 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
         ports:
           - protocol: TCP
             port: 5978
-  
   ```
   
   - **spec**: NetworkPolicy [spec](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status) has all the information needed to define a particular network policy in the given namespace.
@@ -410,7 +409,214 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
   
   - **egress**: Each NetworkPolicy may include a list of allowed `egress` rules. Each rule allows traffic which matches both the `to` and `ports` sections. The example policy contains a single rule, which matches traffic on a single port to any destination in `10.0.0.0/24`.
 
-### Install:
+#### Volume
+
+- A volume is a directory which is accessible to all of the containers in a pod.
+
+- Some volumes are ephemeral, which means they last only as long as the pod to which they are attached.
+
+- Kubernetes offers storage abstraction options
+
+<img title="" src="images/k8s_volume_types.png" alt="K8s Volume" data-align="center">
+
+- Volumes allow containers within a Pod to share data
+  
+  <img title="" src="images/k8s_volume_container.png" alt="k8s volume pod" data-align="center">
+
+**Ephemeral Volumes**
+
+Types of ephemeral volume:
+
+- **emptyDir**: 
+  
+  - An emptyDir volume is simply an empty directory that allows the containers within the Pod to read and write to us and from us. 
+  
+  - It's created when a Pod is assigned to a node and it exists as long as the Pod exists. However, it will be deleted if the Pod is removed from a node for any reason, so don't use emptyDir volumes for data of lasting value. Applications usually use emptyDir for short-term purposes. 
+  
+  - Kubernetes creates emptyDir volumes from the node's local disk or by using a memory-backed file system.
+
+- **ConfigMap:**
+  
+  - The ConfigMap resource provides a way to inject application configuration data into Pods from Kubernetes. The data stored in a ConfigMap option can be referenced in a volume as if it were a tree of files and directories. Your applications can then consume that data. 
+  
+  - For instance, if you're using a web server in a Pod, you might use a ConfigMap to set that web server's perimeters.
+
+- **Secret:**
+  
+  - Secrets are similar to ConfigMaps. You should use Secrets to store sensitive information, such as passwords, tokens, and SSH files.
+  
+  - Just like ConfigMap, a Secret volume is created to pass sensitive information to the Pods. These Secret volumes are backed by in-memory file systems, so the Secrets are never written to nonvolatile storage.
+  
+  - It's also common practice to obfuscate the values that go into Secrets by using the familiar base-64 encoding. Beyond that though, you should not assume that Secrets are secret just because of the way they're configured. 
+  
+  - Having a differentiation between ConfigMaps and Secrets allows you to manage non-sensitive and sensitive Pod configuration data differently. You'll probably apply different permissions to each.
+
+- **downwardAPI:**
+  
+  - The downward API volume type is used to make downward API data available to applications. It's a way containers can learn about their Pod environment. For example, suppose your containerized application needs to construct an identifier that's guaranteed to be unique in the cluster.
+  
+  - The downward API is how your application can fetch the name of the Pod it's running on if you choose to make that data available.
+
+An emptyDir volume is first created when a Pod is assigned to a node:
+
+<img title="" src="images/k8s_pod_with_emptyDir.png" alt="emptyDir with Pod" data-align="center">
+
+Creating a Pod with an emptyDir volume
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+spec:
+  containers:
+  - name: web
+    image: nginx
+    volumeMounts:
+    - mountPath: /cache
+      name: cache-volume
+  volumes:
+  - name: cache-volume
+    emptyDir: {}
+```
+
+**Persistent Volumes**
+
+- The benefits of PersistentVolumes:
+  
+  - Abstracts storage provisioning from storage consumption
+  
+  - Promotes microservices architecture
+  
+  - Allows cluster administrators to provision and maintain storage
+  
+  - Developers can claim provisioned storage for app consumption
+
+- PersistentVolumeClaims and PersistentVolumes separate storage consumption from provisioning:
+  
+  <img title="" src="images/k8s_volumes_persistent.png" alt="PersistentVolume" data-align="center">
+
+- Creating and using a Compute Engine persistent disk
+  
+  <img src="images/k8s_volumes_persistents_yaml.png" title="" alt="persistent disk yaml" data-align="center">
+
+- In action:
+  
+  <img src="images/k8s_volumes_persistent_in_action.png" title="" alt="PersistentDisk in action" data-align="center">
+
+- PersistentVolumes abstraction has two components
+  
+  <img src="images/k8s_volumes_persistent_abstraction.png" title="" alt="PersistentVolumes Abstraction" data-align="center">
+  
+  - PersistentVolumeClaims are requests and claims made by Pods to use PersistentVolumes. Within a PersistentVolumeClaim object, you define a Volume size, access mode, and StorageClass.
+  
+  - What's a StorageClass? It's a set of storage characteristics that you have given a name to.
+  
+  - A Pod uses this PersistentVolumeClaim to request a PersistentVolume. If a PersistentVolume matches all the requirements defined in a PersistentVolumeClaim, the PersistentVolumeClaim is bound to that PersistentVolume. Now, a Pod can consume storage from this PersistentVolume.
+
+- PersistentVolumes provide a level of abstraction that lets you decouple storage administration from application configuration. The storage in a PersistentVolume must be bound with a PersistentVolumeClaim in order to be accessed by a Pod.
+  
+  <img src="images/k8s_volumes_persistent_claims.png" title="" alt="PersistentVolumeClaim" data-align="center">
+
+- Creating a PersistentVolume manifest
+  
+  <img src="images/k8s_volumes_persistent_YAML.png" title="" alt="PersistentVolume Yaml" data-align="center">
+
+- Creating PVC StorageClassName
+  
+  <img src="images/k8s_volumes_persistent_PVC_StorageClass.png" title="" alt="PVC StorageClassName manifest" data-align="center">
+
+- **StorageClass** is a resource used to implement PersistentVolumes. Note that the PVC uses the storageClassName when you define the PVC in a Pod, and it must match the PV storageClassName for the claim to succeed.
+
+- **AccessModes** determine how the Volume will read or write
+  
+  <img src="images/k8s_volumes_persistent_access_mode.png" title="" alt="AccessModes" data-align="center">
+
+#### StatefulSets
+
+- StatefulSets are useful for stateful applications. StatefulSets run and maintain a set of pods, just like deployments do. A StatefulSet object defines a desired state and its controller achieves it.
+
+- However, unlike deployments, StatefulSets maintain a persistent identity for each pod. Each pod in a StatefulSet maintains a persistent identity and has an ordinal index with the relevant pod name, a stable hostname, and stably identified persistent storage that is linked to the ordinal index.
+  
+  - Ordinal index is a unique sequential number that is assigned to each pod in the StatefulSet. This number defines the Pods position in the set sequence of pods.
+
+- Deployment, scaling and updates are ordered using the ordinal index of the paths within a StatefulSet.
+
+- For example, if a StatefulSet named demo launches three replicas, it will launch pod names, demo-0, demo-1, and demo-2 sequentially. This means that all of its predecessors must be running and ready before an action is taken on a newer pod. For example, if demo-0 is not running and ready, demo-1 will not be launched. If demo-0 fails after demo-1 is running and ready, but before the creation of demo-2, will not be launched until demo-0 is relaunched and becomes running and ready.
+
+- Scaling and rolling updates happen in reverse order, which means demo-2 would be changed first.
+
+- Characteristics of StatefulSets:
+  
+  - StatefulSets are designed for stateful applications
+  
+  - StatefulSets use volumeClaimTemplates to launch each Pod's unique PVCs
+  
+  - PVCs can use ReadWriteOnce access mode
+
+- StatefulSets example:
+  
+  ```yaml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: nginx
+    labels:
+      app: nginx
+  spec:
+    ports:
+    - port: 80
+      name: web
+    clusterIP: None
+    selector:
+      app: nginx
+  ---
+  apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    name: web
+  spec:
+    selector:
+      matchLabels:
+        app: nginx # has to match .spec.template.metadata.labels
+    serviceName: "nginx"
+    replicas: 3 # by default is 1
+    minReadySeconds: 10 # by default is 0
+    template:
+      metadata:
+        labels:
+          app: nginx # has to match .spec.selector.matchLabels
+      spec:
+        terminationGracePeriodSeconds: 10
+        containers:
+        - name: nginx
+          image: k8s.gcr.io/nginx-slim:0.8
+          ports:
+          - containerPort: 80
+            name: web
+          volumeMounts:
+          - name: www
+            mountPath: /usr/share/nginx/html
+    volumeClaimTemplates:
+    - metadata:
+        name: www
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "my-storage-class"
+        resources:
+          requests:
+            storage: 1Gi
+  ```
+
+- In the above example:
+  
+  - A Headless Service, named `nginx`, is used to control the network domain.
+  - The StatefulSet, named `web`, has a Spec that indicates that 3 replicas of the nginx container will be launched in unique Pods.
+  - The `volumeClaimTemplates` will provide stable storage using [PersistentVolumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) provisioned by a PersistentVolume Provisioner.
+
+
+
+### Install
 
 - Install docker-desktop
 
