@@ -958,6 +958,122 @@ spec:
   - The Container-Optimized OS implements a minimal read-only file system, performs system integrity checks, and implements firewalls, audit logging, and automatic updates.
 
 - Don't enable Kubernetes Dashboard
+  
+  - Kubernetes Dashboards were often left accessible from the internet, and this was a serious problem.
+
+#### 2. Logging and Monitoring
+
+##### Logging
+
+- Logging provides the forensic history on what a program, process or service has been doing. Whether a service or product is operating well or experiencing errors, logging provides visibility into the tasks and events that have occurred.
+
+- Logging is often a passive form of systems monitoring. Instead of a monitoring service which actively queries the health of a service, a logging service passively collects the event logs. These logs can then be used to identify patterns or perhaps even help an operator track down the root cause of a system failure.
+
+- Logging should be used in conjunction with monitoring. Where monitoring checks end-user facing metrics, in other words your service-level indicators, logging can collect data on the internal systems in a much less intrusive manner.
+
+- Logs from Kubernetes system components such as kubelet and kube proxy are stored in each node's file system in its /var/log directory. Messages written by each container to its standard output and standard error are also logged in the same directory.
+
+- Logging with Kubernetes:
+  
+  - Viewing container logs:
+    
+    ```bash
+    kubectl logs [POD_NAME]
+    ```
+  
+  - Container logs - Most recent 20 lines:
+    
+    ```bash
+    kubectl logs --tail=20 [POD_NAME]
+    ```
+  
+  - Container logs - Most recent 3 hours:
+    
+    ```bash
+    kubectl logs --since=3h [POD_NAME]
+    ```
+
+- Kubernetes itself doesn't offer any log stores solution
+  
+  <img src="images/k8s_logging_node.png" title="" alt="Logging" data-align="center">
+
+- Cluster Logging
+  
+  - A logging agent is installed on every node of a cluster
+    
+    <img src="images/k8s_logging_cluster_level.png" title="" alt="Logging" data-align="center">
+  
+  - Logging agents are pre-installed on the nodes and pre-configured to push your log data to logging. You can also use a public API to write a custom log and push it into logging. Additionally you can filter the logs displayed using logging filter language, either in the logs viewer console or directly through the cloud logging API.
+  
+  - Cloud logging uses FluentD as a node logging agent. FluentD is a log aggregator that will read all of the previously mentioned logs, adding helpful metadata, and then continuously push those logs into cloud logging. FluentD is set up using a DaemonSet because DaemonSets can be used to ensure that every node in a cluster runs a copy of a specific pod. The configuration of the FluentD agent is managed through ConfigMaps. This increases the scalability of the implementation by separating the application, the FluentD DaemonSet from the configuration elements, the ConfigMap.
+
+##### Monitoring
+
+- Monitoring allows you to visualize your service experience from different vantage points. You can monitor from outside the environment to view the service from the user's perspective. Or you can monitor from within the environment to gain insights on key internal metrics.
+
+- Why does monitoring matter?
+  
+  - Provides a complete picture.
+  
+  - Helps you size and scale systems.
+  
+  - Provides focus on your application's current state.
+  
+  - Helps you troubleshoot complex microservices solutions.
+
+- Monitoring the cluster
+  
+  - Number of nodes
+  
+  - Node utilization
+  
+  - Pods/deployments running
+  
+  - Errors and failures
+
+- Monitoring the Pods
+  
+  <img src="images/k8s_monitoring_pod.png" title="" alt="monitoring pod" data-align="center">
+
+- Kubernetes Monitoring
+  
+  <img src="images/k8s_monitoring.png" title="" alt="Monitoring k8s" data-align="center">
+
+##### Probes
+
+- It's best to apply additional health checks, such as liveness and readiness probes.
+  
+  - With a liveness probe, Kubernetes checks to see whether the container is running. If the liveness probe fails, and if the restartPolicy is set to Always or OnFailure, kubelet will restart the container.
+  
+  - With a readiness probe, Kubernetes checks whether the container is ready to accept requests. If a readiness probe fails, the Pod's IP address is removed from all Service endpoints by the endpoint controller.
+  
+  <img src="images/k8s_probes.png" title="" alt="probes" data-align="center">
+
+- These probes can be defined using three types of handlers: Command, HTTP, and TCP, to allow you to perform different types of diagnostic probe tests.
+
+- Deciding which container probe to use
+  
+  <img src="images/k8s_probes_deciding.png" title="" alt="probes" data-align="center">
+
+- Probe handler:
+  
+  - Command probe handler:
+    
+    <img src="images/k8s_probes_command.png" title="" alt="command" data-align="center">
+  
+  - HTTP probe handler:
+    
+    <img src="images/k8s_probes_http.png" title="" alt="HTTP" data-align="center">
+  
+  - TCP probe handler:
+    
+    <img src="images/k8s_probes_tcp.png" title="" alt="TCP" data-align="center">
+
+- Probes can be refined
+  
+  <img src="images/k8s_probes_refined.png" title="" alt="probes" data-align="center">
+
+
 
 ### Install
 
