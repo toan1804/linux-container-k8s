@@ -730,7 +730,234 @@ spec:
 
 - Update Secret: like ConfigMap
 
+### K8s Production
 
+#### 1. Security
+
+##### Kubernetes RBAC(Role-Based Access Control)
+
+- RBAC is a native kubernetes security feature that provides you with fine green tools to manage user account permissions.
+
+- There are three main elements to kubernetes role based access control: Subjects, Resources and Verbs.
+  
+  - The verbs can be executed over which objects, the resources by whom the subjects, a subject is a set of users or processes that can make requests to the kubernetes API.
+  
+  - A resource is a set of Kubernetes API objects such as a pod, deployment, service or persistent volume.
+  
+  - And the verb is a set of operations that can be performed on resources such as get watch, create, and describe.
+  
+  <img src="images/k8s_RBAC.png" title="" alt="K8s RBAC" data-align="center">
+
+- These three elements can be connected by creating two types of RBA API objects: Roles and RoleBindings.
+  
+  - Roles connect API resources and verbs.
+  
+  - RoleBindings, connect rules to `subjects`, `roles` and role bindings can be applied at the cluster or name space level.
+
+- K8s RBAC components:
+  
+  <img src="images/k8s_RBAC_components.png" title="" alt="K8s RBAC components" data-align="center">
+
+- Kubernetes RBAC is helpful if you need to grant users access to specific kubernetes name spaces, you can add users as subjects configure the Roles with the proper permissions and then bind them to the objects.
+
+- In k8s, there are two types of Roles: role and cluster role. RBAC roles are defined at the name space level and RBAC cluster roles are defined at the cluster level.
+  
+  - A role contains rules that represent a set of permissions:
+    
+    <img src="images/k8s_RBAC_examples_1.png" title="" alt="RBAC example" data-align="center">
+  
+  - A ClusterRole grants permissions at the cluster level
+    
+    <img src="images/k8s_RBAC_examples_2.png" title="" alt="RBAC example" data-align="center">
+  
+  - Examples of how to refer to different resource types:
+    
+    <img src="images/k8s_RBAC_examples_3.png" title="" alt="RBAC example" data-align="center">
+
+- Attaching roles
+  
+  - Examples of how to refer to different subject types
+    
+    <img src="images/k8s_RBAC_examples_subject_types.png" title="" alt="RBAC example" data-align="center">
+    
+    - On the bottom left, you have an example of a ServiceAccount subject where the ServiceAccount name is 'default' and the namespace is specified as 'kube-system'.
+    
+    - In the right column, you have more group types. The example on top right includes all service accounts on all namespaces.
+    
+    - The middle example on the right includes only the service accounts in the QA namespace.
+    
+    - The example on the bottom right includes all authenticated users.
+  
+  - Attaching roles to RoleBindings:
+    
+    <img src="images/k8s_RBAC_RoleBinding_manifest_Yaml.png" title="" alt="RBAC RoleBindings" data-align="center">
+    
+    - Define the namespace, then the subjects.
+    
+    - In Kubernetes, subject kind can be users, groups, or service accounts (likes examples above).
+    
+    - You bind a role to subjects and the RoleBinding using roleRef by defining the role kind and the role name. A RoleBinding can refer to roles or ClusterRoles.
+    
+    - If a ClusterRole is bound in a RoleBinding, it only grants permissions to the resources of the particular namespaces defined for the RoleBinding, and not to the entire cluster.
+  
+  - A ClusterRole grants permissions at the cluster level
+    
+    <img src="images/k8s_RBAC_ClusterRole.png" title="" alt="ClusterRole" data-align="center">
+  
+  - ClusterRoleBinding
+    
+    <img src="images/k8s_RBAC_ClusterRoleBinding_Yaml.png" title="" alt="Cluster RoleBinding Yaml" data-align="center">
+    
+    - Note that namespace isn't mentioned, because a ClusterRoleBinding always has a cluster-wide scope.
+    
+    - Note that a ClusterRoleBinding can only refer to a ClusterRole, not to a role.
+
+- Kubernetes RBAC summary
+  
+  <img src="images/k8s_RBAC_summary.png" title="" alt="k8s RBAC summary" data-align="center">
+  
+  - With Kubernetes RBAC, you can manage granular permissions for the people, using users and groups, and for containers, using service accounts, at both the namespace level and the cluster level. Resources and verbs are bound using either Roles or ClusterRoles. Roles and ClusterRoles are then bound to subjects using either a RoleBinding or a ClusterRoleBinding. A variety of ClusterRoles and ClusterRoleBindings are also predefined within the RBAC system.
+
+##### Pod Security
+
+- By default, users can deploy containers inside a Pod that will allow privilege elevation, and can access the host file system and the host network. Sometimes those capabilities are convenient, and sometimes they're undesirable from a security perspective. You can define restrictions on what the containers in a Pod can do by using security contexts. You can also enforce the use of specific security measures.
+
+- A security context is a set of security settings defined in a Pod specification.
+  
+  <img src="images/k8s_podSecurity_security_context_example.png" title="" alt="Security context example" data-align="center">
+  
+  - The securityContext definition inside the Pod specifies that the first process runs with user ID 1,000 for any containers in the Pod, and group ID 2,000 is associated with all containers in the Pod. This provides a specific user and group context for the containers. The most important thing about this context is that 1,000 is not 0! In a Linux system, 0 is the privileged root user's user ID. Taking away root privilege from the code running inside the container limits what it can do in case of compromise.
+  
+  - If you define a security context at the Pod level, it's applied to all of the Pod's containers.
+
+- By defining PodSecurityPolicies, you create reusable security contexts. You can apply PodSecurityPolicies to multiple Pods without having to specify and manage those details in each Pod definition.
+  
+  - What's in a PodSecurityPolicy? Each consists of an object and an admission controller.
+  
+  - A policy is a set of restrictions, requirements, and defaults.
+  
+  - All conditions must be fulfilled for a Pod to be created or updated.
+  
+  - PodSecurityPolicy controller is an admission controller.
+  
+  - The controller validates and modifies requests against one or more PodSecurityPolicies.
+    
+    ```yaml
+    apiVersion: policy/v1beta1
+    
+    kind: PodSecurityPolicy
+    
+    metadata:
+    
+      name: restricted
+    
+      annotations:
+    
+        # docker/default identifies a profile for seccomp, but it is not particularly tied to the Docker runtime
+    
+        seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default,runtime/default'
+    
+        apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    
+        apparmor.security.beta.kubernetes.io/defaultProfileName:  'runtime/default'
+    
+    spec:
+    
+      privileged: false
+    
+      # Required to prevent escalations to root.
+    
+      allowPrivilegeEscalation: false
+    
+      requiredDropCapabilities:
+    
+        - ALL
+    
+      # Allow core volume types.
+    
+      volumes:
+    
+        - 'configMap'
+    
+        - 'emptyDir'
+    
+        - 'projected'
+    
+        - 'secret'
+    
+        - 'downwardAPI'
+    
+        # Assume that ephemeral CSI drivers & persistentVolumes set up by the cluster admin are safe to use.
+    
+        - 'csi'
+    
+        - 'persistentVolumeClaim'
+    
+        - 'ephemeral'
+    
+      hostNetwork: false
+    
+      hostIPC: false
+    
+      hostPID: false
+    
+      runAsUser:
+    
+        # Require the container to run without root privileges.
+    
+        rule: 'MustRunAsNonRoot'
+    
+      seLinux:
+    
+        # This policy assumes the nodes are using AppArmor rather than SELinux.
+    
+        rule: 'RunAsAny'
+    
+      supplementalGroups:
+    
+        rule: 'MustRunAs'
+    
+        ranges:
+    
+          # Forbid adding the root group.
+    
+          - min: 1
+    
+            max: 65535
+    
+      fsGroup:
+    
+        rule: 'MustRunAs'
+    
+        ranges:
+    
+          # Forbid adding the root group.
+    
+          - min: 1
+    
+            max: 65535
+    
+      readOnlyRootFilesystem: false
+    
+    ```
+
+- Applying pod security policies
+  
+  - Authorize your Pod security policy
+    
+    <img src="images/k8s_podSecurity_authorize_pod_security_policy.png" title="" alt="Authorize pod security policy" data-align="center">
+  
+  - Define a RoleBinding to bind the ClusterRole to users or groups
+    
+    <img src="images/k8s_podSecurity_RoleBinding.png" title="" alt="RoleBinding" data-align="center">
+
+- You can take additional security measures in Kubernetes
+  
+  <img src="images/k8s_more_security.png" title="" alt="more security" data-align="center">
+  
+  - The Container-Optimized OS implements a minimal read-only file system, performs system integrity checks, and implements firewalls, audit logging, and automatic updates.
+
+- Don't enable Kubernetes Dashboard
 
 ### Install
 
