@@ -664,7 +664,6 @@ spec:
     ```bash
     kubectl create configmap demo --from-file=Color=demo/color.properties \
      --from-file=Graphics=demo/ui.properties
-    
     ```
   
   - Creating a ConfigMap using a directory
@@ -730,6 +729,8 @@ spec:
   <img src="images/k8s_volumes_secret_using_3.png" title="" alt="using secret" data-align="center">
 
 - Update Secret: like ConfigMap
+
+
 
 ### Install
 
