@@ -496,7 +496,7 @@ spec:
   
   <img title="" src="images/k8s_volumes_persistent.png" alt="PersistentVolume" data-align="center">
 
-- Creating and using a Compute Engine persistent disk
+- Creating and using a Compute Engine persistent disk (check [Types of Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#types-of-persistent-volumes))
   
   <img src="images/k8s_volumes_persistents_yaml.png" title="" alt="persistent disk yaml" data-align="center">
 
@@ -614,7 +614,122 @@ spec:
   - The StatefulSet, named `web`, has a Spec that indicates that 3 replicas of the nginx container will be launched in unique Pods.
   - The `volumeClaimTemplates` will provide stable storage using [PersistentVolumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) provisioned by a PersistentVolume Provisioner.
 
+**ConfigMap**
 
+- ConfigMaps decouple configuration from Pods. This means that you don't have to enter the same information across multiple Pods specifications. You store this configuration in one place and maintain it as a single source of truth. This prevents configuration drift.
+
+- Using ConfigMap, you can store configuration files, command-line arguments, environment variables, port numbers, and other configuration artifacts, and make them available inside containers. This makes your application more portable and manageable without requiring them to be Kubernetes aware.
+
+- ConfigMaps can be created from literal values, files, and directories using a simple kubectl create command. These data sources contain key-value pairs.
+
+- ConfigMaps promote Twelve-Factor-ness:
+  
+  <img src="images/k8s_volumes_configMap.png" title="" alt="ConfigMaps" data-align="center">
+
+- Creating a ConfigMap
+  
+  ```bash
+  kubectl create configmap [NAME] [DATA]
+  ```
+  
+  Examples:
+  
+  - Creating a ConfigMap using literal values:
+    
+    ```bash
+    kubectl create configmap demo --from-literal=lab.difficulty=easy \
+                    --from-literal=lab.resolution=high
+    ```
+    
+    <img src="images/k8s_volumes_configmap_literal_values.png" title="" alt="ConfigMap literal values" data-align="center">
+  
+  - Creating a ConfigMap using files:
+    
+    ```bash
+    kubectl create configmap demo --from-file=demo/color.properties \
+                    --from-file=demo/ui.properties
+    ```
+    
+    <img src="images/k8s_volumes_configmap_files.png" title="" alt="ConfigMap files" data-align="center">
+  
+  - You can add a key name instead of using source filenames
+    
+    ```bash
+    kubectl create configmap [NAME] --from-file=[KEY_NAME_1]=[FILE_PATH_1] \
+                    --from-file=[KEY_NAME_2]=[FILE_PATH_2]
+    ```
+    
+    *e.g.*
+    
+    ```bash
+    kubectl create configmap demo --from-file=Color=demo/color.properties \
+     --from-file=Graphics=demo/ui.properties
+    
+    ```
+  
+  - Creating a ConfigMap using a directory
+    
+    ```bash
+    kubectl create configmap demo --from-file=demo/
+    ```
+  
+  - Creating a ConfigMap from a manifest
+    
+    <img src="images/k8s_volumes_configmap_manifest_YAML.png" title="" alt="ConfigMap manifest" data-align="center">
+  
+  - Using a ConfigMap as a container environment variable
+    
+    <img src="images/k8s_volumes_configmap_in_container_pod.png" title="" alt="configMap container env" data-align="center">
+  
+  - Using a ConfigMap in Pod commands
+    
+    <img src="images/k8s_volumes_configmap_in_pod_command.png" title="" alt="ConfigMap Pod commands" data-align="center">
+  
+  - Using a ConfigMap by creating a Volume
+    
+    <img src="images/k8s_volumes_configmap_by_create_volume.png" title="" alt="ConfigMap by create Volume" data-align="center">
+
+- Update ConfigMap
+  
+  - Each nodes kubelet periodically syncs with ConfigMap to keep the 'configMap-volume' updated. When a 'configMap-volume' is already mounted, and the source ConfigMap is changed, the projected keys are eventually updated.
+  
+  - What does eventually mean here? It's on the order of seconds or minutes. If you have a piece of configuration data that will change more rapidly than that, you should probably implement a microservice to provide its value to Pods rather than using a ConfigMap.
+  
+  - *Note:* The values of environment variables are inserted into a Pod at the time of the Pod's birth; the kubelet has no way to reach into the Pod and modify these values later. (The kubelet **never** refresh the values of ConfigMaps stored in environment variables inside Pods)
+
+**Secrets**
+
+- Secrets are similar to ConfigMaps, but it's a convention that Kubernetes applications use Secrets rather than ConfigMaps to store sensitive information such as passwords, tokens, and SSH keys.
+
+- Secrets let you manage sensitive information in their own control plane. Secrets also help to ensure Kubernetes doesn't accidentally output this data to logs.
+
+- Types of Secrets:
+  
+  <img src="images/k8s_volumes_secrets_types.png" title="" alt="Secrets" data-align="center">
+  
+  - The generic type is used when creating secrets from files, directories, or literal values.
+  
+  - The TLS type uses an existing public private encryption key pair. To create one of these, you must give Kubernetes the public key certificate encoded in PEM format and you must also supply the private key of that certificate.
+  
+  - The Docker registry secret type can be used to pass credentials for an image registry to a Kubelet so it can pull a private image from the Docker registry on behalf of your pod.
+
+- Creating a Secret
+  
+  <img src="images/k8s_volumes_secrets_create.png" title="" alt="Create Secret" data-align="center">
+
+- Creating a generic Secret
+  
+  <img src="images/k8s_volumes_secret_create_genetic.png" title="" alt="create Secret" data-align="center">
+
+- Using a Secret
+  
+  <img src="images/k8s_volumes_secret_using_1.png" title="" alt="Using Secret" data-align="center">
+  
+  <img src="images/k8s_volumes_secret_using_2.png" title="" alt="using secret" data-align="center">
+  
+  <img src="images/k8s_volumes_secret_using_3.png" title="" alt="using secret" data-align="center">
+
+- Update Secret: like ConfigMap
 
 ### Install
 
