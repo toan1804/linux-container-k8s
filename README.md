@@ -245,11 +245,11 @@ Pods can connect directly using native IP addresses or using cluster networking 
 
 - A Kubernetes service is an object that creates a dynamic collection of IP addresses called endpoints that belong to Pods matching the Services labeled selector.
   
-  <img title="" src="images/k8s_services.PNG" alt="a" data-align="center">
+  <img title="" src="images/k8s_services.PNG" alt="Service" data-align="center">
 
 -  When you create a service, that service issued a static virtual IP address from the pool of IP addresses that the cluster reserves for Services. 
   
-  <img title="" src="images/k8s_services_static_IP.PNG" alt="a" data-align="center">
+  <img title="" src="images/k8s_services_static_IP.PNG" alt="Service" data-align="center">
 
 - The virtual IP is durable. It is published to all nodes in the cluster. It doesn't change even if all the Pods behind it change.
 
@@ -265,7 +265,7 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
    
    - Example:
      
-     <img title="" src="images/k8s_service_clusterIP_YAML.png" alt="a" data-align="center">
+     <img title="" src="images/k8s_service_clusterIP_YAML.png" alt="clusterIP Yaml" data-align="center">
      
      - Here, you create a Service object by defining its kind. If you don't specify a Service type during the creation of the service, it will default to Service type of ClusterIP.
      
@@ -275,13 +275,14 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
      
      - Next, you specify the port that the target containers are using. In this case, it's TCP port 6000. This Service will receive traffic on port 3306 and then remap it to 6000 as it delivers it to the target Pods. Creating, loading, or applying this manifest will create the ClusterIP Service named 'my-service'.
      
-     <img title="" src="images/k8s_clusterIP_example.png" alt="a" data-align="center">
+     <img title="" src="images/k8s_clusterIP_example.png" alt="clusterIP work" data-align="center">
      
      - In this example, you will have frontend Pods that must be able to locate the backend Pods. When you create the Service, the cluster control plane assigns a virtual IP address, known as ClusterIP, from a reserve pool of alias IP addresses in the cluster's VPC. This IP address won't change throughout the lifespan of the Service. The cluster control plane selects Pods to include in the Service's endpoints based on the label selector on the Service and the labels on the Pods. The IP addresses of these backend Pods are matched to the target port, TCP port 6000 in this example, to create the endpoint resources that the Service forwards requests to. The ClusterIP Service will answer requests on TCP port 3306 in this example, and forward the request to backend Pods using their IP addresses and the target port as the endpoint resources.
 
 2. **NodePort**
    
-   - In addition to the setup of a ClusterIP Service, a specific port is exposed on every node. This port is also known as NodePort, and is automatically allocated from the range of 30,000 to 32,767. In some cases, users may want to manually specify it, which is allowed as long as the value falls within that range, but is not usually necessary.<img title="" src="images/k8s_service_nodePort_YAML.png" alt="NodePortYaml" data-align="center">
+   - In addition to the setup of a ClusterIP Service, a specific port is exposed on every node. This port is also known as NodePort, and is automatically allocated from the range of 30,000 to 32,767. In some cases, users may want to manually specify it, which is allowed as long as the value falls within that range, but is not usually necessary.
+    <img title="" src="images/k8s_service_nodePort_YAML.png" alt="NodePortYaml" data-align="center">
    
    - ClusterIP is useful for internal communication within a cluster, but what about external communication? NodePort enables this. NodePort is built on top of ClusterIP Service, therefore, when you create a NodePort Service, a ClusterIP Service is automatically created in the process.
      
