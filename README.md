@@ -1073,7 +1073,15 @@ spec:
   
   <img src="images/k8s_probes_refined.png" title="" alt="probes" data-align="center">
 
+##### CI/CD with Kubernetes
 
+- On premises:
+  
+  <img src="images/k8s_CI_CD_on_premises.png" title="" alt="On premises" data-align="center">
+
+- On cloud:
+  
+  <img src="images/k8s_CI_CD_on_cloud.png" title="" alt="On cloud" data-align="center">
 
 ### Install
 
