@@ -108,24 +108,12 @@
   
   - Viewing cron jobs:
     
+    `crontab -l` 
+    
+    *or*
+    
     `crontab -l | tail -[number]`
     
     *e.g.* `crontab -l | tail -6` 
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
