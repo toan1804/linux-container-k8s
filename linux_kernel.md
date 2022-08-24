@@ -89,5 +89,3 @@
   - `/dev`: [Device files](https://en.wikipedia.org/wiki/Device_file "Device file") (e.g., `/dev/null`, `/dev/disk0`, `/dev/sda1`, `/dev/tty`, `/dev/random`).
   
   - `/mnt`: Temporarily [mounted](https://en.wikipedia.org/wiki/Mount_(computing) "Mount (computing)") filesystems.
-
-
