@@ -256,10 +256,203 @@
   
   - Lambda architecture = accuracy and speed
 
-
-
 ### Tools
 
 #### 1. Airflow
 
 #### 2. Kafka
+
+##### Distributed Event Streaming Platform Components
+
+- What is an Event?
+  
+  - Events describe an entity's observable state update over time.
+  
+  - Example: GPS coordinates of a car, temperature of a room, blood pressure of a patient, RAM usage of an application.
+
+- One source to one destination
+  
+  - Event streaming from one event source to one destination
+    
+    <img src="images/ETL_Datapipeline/stream_processing_one_one.png" title="" alt="streaming one one" data-align="center">
+
+- Many sources to many destinations
+  
+  <img src="images/ETL_Datapipeline/stream_processing_many_many.png" title="" alt="streaming many many" data-align="center">
+
+- Event Streaming Platform (ESP)
+  
+  <img src="images/ETL_Datapipeline/event_streaming_platform.png" title="" alt="ESP" data-align="center">
+  
+  - An ESP acts as a middle layer among various event sources and destinations and provides a unified interface for handling event-based ETL. As such, all event sources only need to send events to an ESP instead of sending them to the individual event destination. On the other side, event destinations only need to subscribe to an ESP, and just consume the events sent from the ESP instead of the individual event source.
+  
+  - Different ESPs may have different architectures and components.
+  
+  - Here are some common components included in most ESP systems:
+    
+    <img src="images/ETL_Datapipeline/ESP_common_components.png" title="" alt="ESP components" data-align="center">
+    
+    - The first and foremost component is the Event broker, which is designed to receive and consume events.
+    
+    - The second common component of an ESP is Event Storage, which is used for storing events being received from event sources. Accordingly, event destinations do not need to synchronize with event sources, and stored events can be retrieved at will.
+    
+    - The third common component is the Analytic and Query Engine which is used for querying and analyzing the stored events.
+  
+  - Event broker: core component of an ESP
+    
+    <img src="images/ETL_Datapipeline/ESP_Event_broker.png" title="" alt="ESP Event broker" data-align="center">
+    
+    - It normally contains three sub-components: ingester, processor, and consumption.
+    
+    - The ingester is designed to efficiently receive events from various event sources.
+    
+    - The processor performs operations on data such as serializing and deserializing; compressing and decompressing; encryption and decryption; and so on.
+    
+    - The consumption component retrieves events from event storage and efficiently distributes them to subscribed event destinations.
+
+##### Apache Kafka Overview
+
+- Kafka is a comprehensive platform and can be used in many application scenarios.
+
+- Common use cases:
+  
+  <img src="images/ETL_Datapipeline/kafka_common_use_case.png" title="" alt="kafka use cases" data-align="center">
+
+- Kafka architecture
+  
+  <img src="images/ETL_Datapipeline/kafka_architecture.png" title="" alt="architecture" data-align="center">
+  
+  - Kafka has a distributed client-server architecture: For the server side, Kafka is a cluster with many associated servers called brokers, acting as the event broker to receive, store, and distribute events. All those brokers are managed by another distributed system called ZooKeeper to ensure all brokers work in an efficient and collaborative way.
+  
+  - Kafka uses a TCP (Transmission Control Protocol) based network communication protocol to exchange data between clients and servers.
+  
+  - For the client side, Kafka provides different types of clients such as:
+    
+    - Kafka CLI, which is a collection of shell scripts to communicate with a Kafka server
+    - Many high-level programming APIs such as Python, Java, and Scala
+    - REST APIs
+    - Specific 3rd party clients made by the Kafka community
+
+- Main features of Apache Kafka
+  
+  - Distribution system
+  
+  - Highly scalable
+  
+  - Highly reliable
+  
+  - Permanent persistency
+  
+  - Open source
+
+##### Building Event Streaming Pipelines using Kafka
+
+- Broker and Topic
+  
+  <img src="images/ETL_Datapipeline/kafka_broker_topic.png" title="" alt="broker topic" data-align="center">
+  
+  - A Kafka cluster contains one or many brokers. You may think of a Kafka broker as a dedicated server to receive, store, process, and distribute events. Brokers are synchronized and managed by another dedicated server called ZooKeeper.
+  
+  - For example, in above picture, we have A log topic and a transaction topic in broker 0. A payment topic and a GPS topic in broker 1. and, a user click topic and user search topic in broker 2.
+  
+  - Each broker contains one or many topics. You can think of a `topic` as a database to store specific types of events, such as logs, transactions, and metrics.
+  
+  - Brokers manage to save published events into topics and distribute the events to subscribed consumers.
+
+- Partition and replications
+  
+  <img src="images/ETL_Datapipeline/kafka_replicate_partition.png" title="" alt="partiton replication" data-align="center">
+  
+  - Kafka implements the concepts of partitioning and replicating.
+  
+  - It uses topic partitions and replications to increase fault-tolerance and throughput so that event publication and consumption can be done in parallel with multiple brokers. In addition, even if some brokers are down, Kafka clients are still able to work with the target topics replicated in other working brokers.
+  
+  - For example: A log topic has been separated into two partitions: 0, 1, and a user topic has been separated into two partitions: 0, 1.
+  
+  - And each topic partition is duplicated into two replications and stored in different brokers.(see above picture)
+
+- Kafka topic CLI
+  
+  The Kafka CLI, or command line interface client provides a collection of powerful script files for users to build an event streaming pipeline: The Kafka-topics script is the one you probably will be using often to manage topics in a Kafka cluster.
+  
+  <img src="images/ETL_Datapipeline/kafka_topic_cli_example.png" title="" alt="topic cli" data-align="center">
+
+- Kafka Producer
+  
+  - Client applications that publish events to topic partition
+  
+  - An event can be optionally associated with a key
+  
+  - Events associated with the same key will be published to the same topic partition
+  
+  - Events not associated with any key will be published to topic partitions in rotation
+
+- Kafka Producer in action
+  
+  <img src="images/ETL_Datapipeline/kafka_producer_in_action.png" title="" alt="producer in action" data-align="center">
+
+- Kafka producer CLI
+  
+  <img src="images/ETL_Datapipeline/kafka_producer_cli.png" title="" alt="producer CLI" data-align="center">
+
+- Kafka consumer
+  
+  - Consumers are clients subscribed to topics
+  
+  - Consume data in the same order
+  
+  - Store an offset record for each partition
+  
+  - Offset can be reset to zero to read all events from the beginning again
+
+- Kafka consumer in action
+  
+  <img src="images/ETL_Datapipeline/kafka_consumer_in_action.png" title="" alt="consumer in action" data-align="center">
+
+- Kafka consumer CLI
+  
+  <img src="images/ETL_Datapipeline/kafka_consumer_cli.png" title="" alt="consumer cli" data-align="center">
+
+- A weather pipeline example
+  
+  <img src="images/ETL_Datapipeline/kafka_examples.png" title="" alt="example" data-align="center">
+
+##### Kafka Streaming Process
+
+- Ad hoc weather stream processing (example)
+  
+  <img src="images/ETL_Datapipeline/kafka_streaming_ad_hoc_example.png" title="" alt="ad hoc weather" data-align="center">
+
+- Kafka Streams API
+  
+  <img src="images/ETL_Datapipeline/kafka_streams_processes.png" title="" alt="kafka streams" data-align="center">
+  
+  - Simple client library to facilitate data processing in event streaming pipelines
+  
+  - Processes and analyzes data stored in Kafka topics
+  
+  - Record only processed once
+  
+  - Processing one record at a time
+
+- Stream processing topology
+  
+  <img src="images/ETL_Datapipeline/kafka_processing_topology.png" title="" alt="Stream processing topology" data-align="center">
+  
+  - Kafka Streams API is based on a computational graph called a stream-processing topology.
+  
+  - In this topology, each node is a stream processor which receives streams from its upstream processor, performs data transformations such as mapping, filtering, formatting, aggregation, and produces output streams to its downstream stream processors. Thus, the edges of the graph are I/O streams.
+  
+  - There are two special types of processors:
+    
+    - On the left, you can see the source processor which has no upstream processors. A source processor acts like a consumer which consumes streams from Kafka topics and forwards the processed streams to its downstream processors.
+    
+    - On the right, you can see the sink processor, which has no downstream processors. A sink processor acts like a producer which publishes the received stream to a Kafka topic.
+
+- Kafka weather stream processing (example)
+  
+  <img src="images/ETL_Datapipeline/kafka_weather_stream_processing.png" title="" alt="weather stream processing" data-align="center">
+  
+  
+
+
