@@ -165,6 +165,18 @@ use kubectl to gather info about  your app:
 
 <img title="" src="images/kubectl_introspection.PNG" alt="a" data-align="center">
 
+## Workloads
+
+A workload is an application running on Kubernetes. Whether your workload is a single component or several that work together, on Kubernetes you run it inside a set of [*pods*](https://kubernetes.io/docs/concepts/workloads/pods). In Kubernetes, a `Pod` represents a set of running `containers` on your cluster.
+
+Kubernetes provides several built-in workload resources:
+
+- [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) and [`ReplicaSet`](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/) (replacing the legacy resource [ReplicationController](https://kubernetes.io/docs/reference/glossary/?all=true#term-replication-controller)). `Deployment` is a good fit for managing a stateless application workload on your cluster, where any `Pod` in the `Deployment` is interchangeable and can be replaced if needed.
+- [`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) lets you run one or more related Pods that do track state somehow. For example, if your workload records data persistently, you can run a `StatefulSet` that matches each `Pod` with a [`PersistentVolume`](https://kubernetes.io/docs/concepts/storage/persistent-volumes/). Your code, running in the `Pods` for that `StatefulSet`, can replicate data to other `Pods` in the same `StatefulSet` to improve overall resilience.
+- [`DaemonSet`](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) defines `Pods` that provide node-local facilities. These might be fundamental to the operation of your cluster, such as a networking helper tool, or be part of an [add-on](https://kubernetes.io/docs/concepts/cluster-administration/addons/).  
+  Every time you add a node to your cluster that matches the specification in a `DaemonSet`, the control plane schedules a `Pod` for that `DaemonSet` onto the new node.
+- [`Job`](https://kubernetes.io/docs/concepts/workloads/controllers/job/) and [`CronJob`](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) define tasks that run to completion and then stop. Jobs represent one-off tasks, whereas `CronJobs` recur according to a schedule.
+
 ### Deployment
 
 Deployment declare  the state of the Pods:
@@ -282,7 +294,8 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
 2. **NodePort**
    
    - In addition to the setup of a ClusterIP Service, a specific port is exposed on every node. This port is also known as NodePort, and is automatically allocated from the range of 30,000 to 32,767. In some cases, users may want to manually specify it, which is allowed as long as the value falls within that range, but is not usually necessary.
-    <img title="" src="images/k8s_service_nodePort_YAML.png" alt="NodePortYaml" data-align="center">
+     
+     <img title="" src="images/k8s_service_nodePort_YAML.png" alt="NodePortYaml" data-align="center">
    
    - ClusterIP is useful for internal communication within a cluster, but what about external communication? NodePort enables this. NodePort is built on top of ClusterIP Service, therefore, when you create a NodePort Service, a ClusterIP Service is automatically created in the process.
      
@@ -939,7 +952,6 @@ spec:
             max: 65535
     
       readOnlyRootFilesystem: false
-    
     ```
 
 - Applying pod security policies
