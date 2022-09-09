@@ -461,7 +461,7 @@ NoSQL Database categories:
     
     - Traditional relational databases: create schema first, then create tables
     
-    -  To store another field, you have to alter tables
+    - To store another field, you have to alter tables
   
   - Bring structured/unstructured data
   
@@ -575,9 +575,337 @@ NoSQL Database categories:
 
 #### Cassandra
 
+## BIG DATA
 
+#### Introduction to Big Data
 
+##### What is Big Data
 
+- The four V's of Big Data
+  
+  - Velocity:
+    
+    - Description:
+      
+      - Data that is generated fast
+      
+      - Process that never stops
+    
+    - Attributes:
+      
+      - Batch
+      
+      - Close to real time
+      
+      - Streaming
+    
+    - Drivers:
+      
+      - Improved connectivity and hardware
+      
+      - Rapid response times
+  
+  - Volume
+    
+    - Description
+      
+      - Scale of data
+      
+      - Increased amount of stored data
+    
+    - Attributes
+      
+      - Petabytes
+      
+      - Exa
+      
+      - Zetta
+    
+    - Drivers
+      
+      - Increase in data sources
+      
+      - Higher resolution sensors
+      
+      - Scalable infrastructure
+  
+  - Variety
+    
+    - Description
+      
+      - Data that comes from machines, people, and processes
+      
+      - Structured, semi-structured, and unstructured data
+    
+    - Attributes
+      
+      - Structure, complexity, and origin
+    
+    - Drivers
+      
+      - Mobile technologies
+      
+      - Scalable infrastructure
+      
+      - Resilience
+      
+      - Fault recovery
+      
+      - Efficient storage and retrieveal
+  
+  - Veracity
+    
+    - Description
+      
+      - Quality, origin, and conformity of facts
+      
+      - Accuracy of data
+      
+      - Data that comes from people and processes
+    
+    - Attributes
+      
+      - Consistency and compleness
+      
+      - Integrity
+      
+      - Ambiguity
+    
+    - Drivers
+      
+      - Cost and traceability
+      
+      - Robust ingestion
+      
+      - ETL mechanisms
+
+- Parallel Processing, Scaling, and Data Parallelism
+  
+  - Linear vs. parallel processing
+    
+    ![Linear vs parallel](images/No_SQL_Big_data/linear_vs_parallel_process.jpg)
+  
+  - Why parallel processing is apt for Big Data
+    
+    - Parallel Processing advantages
+      
+      - Parallel processing approach can process large datasets in a fraction of time
+      
+      - Less memory and compute requirements needed as set of instructions are distributed to smaller execution nodes
+      
+      - More execution nodes can be added or removed from the processing network depending on complexity of the problem
+
+#### Hadoop Ecosystem
+
+##### Introduction to Hadoop
+
+- What is Hadoop?
+  
+  - Set of open-source programs and procedures
+  
+  - Used for processing large amounts of data
+  
+  - Servers run applications on cluster
+  
+  - Handles parallel jobs or processes
+
+- How does Hadoop work?
+  
+  ![Hadoop](images/No_SQL_Big_data/Hadoop_work.jpg)
+
+- The challenges of  Hadoop
+  
+  - Processing transactions (random access)
+  
+  - When work cannot be parallelized
+  
+  - When there are dependencies in the data
+  
+  - Low latency data access
+  
+  - Processing lots of small files
+  
+  - Intensive calculations with little data
+
+##### Intro to MapReduce
+
+- What is MapReduce?
+  
+  - Programming model used in Hadoop for processing Big Data
+  
+  - Processing technique for distributed computing
+  
+  - Consists of a Map task and a Reduce task
+  
+  - Can be coded in many programming languages like Java, C++, Python, Ruby and R
+
+- Map and reduce
+  
+  - Input file
+  
+  - Map: Processes data into key value pairs
+  
+  - Further data sorting and organizing
+  
+  - Reducer: Aggregates and computes a set of result and produces a final output
+  
+  - MapReduce keeps track of its task by creating a unique key
+
+- How MapReduce works
+  
+  <img src="images/No_SQL_Big_data/MapReduce_work.jpg" title="" alt="MapReduce" data-align="center">
+
+- Why use MapReduce?
+  
+  - Parallel Computing
+  
+  - Process data in tabular and Non tabular forms, such as videos
+  
+  - Support for multiple languages
+  
+  - Platform for analysis and data ware housing
+
+##### Hadoop ecosystem
+
+- The Hadoop ecosystem is made up of components that support one another
+  
+  ![Hadoop](images/No_SQL_Big_data/Hadoop_ecosystem.jpg)
+
+- Ingest data
+  
+  - Flume
+    
+    - Collects, aggregates, and transfers big data
+    
+    - Has a simple and flexible architecture based on streaming data flows
+    
+    - Uses a simple extensible data model that allows for online analytic application
+  
+  - Sqoop
+    
+    - Designed to transfer data between relational database systems and Hadoop
+    
+    - Accesses the database to understand the the schema of the data
+    
+    - Generates a MapReduce application to import or export the data
+
+- Store
+  
+  - HBase
+    
+    - A non-relational database that runs on top of HDFS
+    
+    - Provides real time wrangling on data
+    
+    - Stores data as indexes to allow for random and faster access to data
+  
+  - Cassandra
+    
+    - A scalable, NoSQL database designed to have no single point of failure
+
+- Analyze data
+  
+  - Pig
+    
+    - Analyzes large amounts of data
+    
+    - Operates on the client side of a cluster
+    
+    - A procedural data flow language
+  
+  - Hive
+    
+    - Used for creating reports
+    
+    - Operates on the server side of a cluster
+    
+    - A declarative programming language
+
+- Access Data
+  
+  - Impala
+    
+    - Scalable and easy to use platform for everyone
+    
+    - No programming skills required
+  
+  - Hue
+    
+    - Stands for Hadoop user experience
+    
+    - Alloes you to upload, browse, and query data
+    
+    - Runs Pig jobs and workflow
+    
+    - Provides editors for several SQL query languages like Hive and MySQL
+
+##### HDFS
+
+- HDFS
+  
+  - HDFS is the acronym for Hadoop Distributed File System
+  
+  - It is the storage layer of Hadoop
+  
+  - Splits the files into blocks, creates replicas of the blocks, and stores them on different machines
+  
+  - Provides access to streaming data
+  
+  - HDFS uses a command line interface to interact with Hadoop
+
+- Key features
+  
+  ![HDFS](images/No_SQL_Big_data/HDFS_key_features.jpg)
+
+- HDFS concepts
+  
+  - Blocks
+    
+    - Minimum amount of data that can be read or written
+    
+    - Provides fault tolerance
+    
+    - Default size is 64MB or 128 MB
+      
+      
+      
+      
+      
+      ![blocks](images/No_SQL_Big_data/HDFS_block.jpg)
+    
+    - Each file stored doesn't have to take up the configured space size
+  
+  - Nodes
+    
+    ![Nodes](images/No_SQL_Big_data/HDFS_nodes.jpg)
+  
+  - Rack awareness in HDFS
+    
+    - Choosing data node racks that are closest to each other
+    
+    - Improves cluster performance by reducing network traffic
+    
+    - Name node keeps the rack ID information
+    
+    - Replication can be done through rack awareness
+  
+  - Replication
+    
+    - Creating a copy of the data block
+    
+    - Copies are created for backup purpoess
+    
+    - Replication factor: Number of times the data block was copied
+  
+  - Read and Write Operations
+    
+    - HDFS allows write once read many operations
+      
+      ![HDFS](images/No_SQL_Big_data/HDFS_read_write.jpg)
+    
+    - HDFS architecture
+      
+      ![HDFS](images/No_SQL_Big_data/HDFS_architecture.jpg)
 
 
 
