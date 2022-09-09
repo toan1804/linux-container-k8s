@@ -907,6 +907,44 @@ NoSQL Database categories:
       
       ![HDFS](images/No_SQL_Big_data/HDFS_architecture.jpg)
 
+##### Hive
+
+- Hive is data warehouse software within Hadoop that is designed for reading, writing and managing tabular-type datasets and data analysis:
+  
+  - It is scalable, fast, and easy to use
+  
+  - Hive Query Language (HiveQL) is inspired by SQL, making it easier for users to grasp concepts
+  
+  - It supports data cleansing and filtering depending on user's requirements
+
+- Hive and traditional RDBMS compared
+  
+  ![Hive](images/No_SQL_Big_data/Hive_compared.jpg)
+
+- Hive architecture
+  
+  ![Hive](images/No_SQL_Big_data/Hive_architecture.jpg)
+
+- Hive concepts
+  
+  - Clients
+    
+    ![Hive](images/No_SQL_Big_data/Hive_client.jpg)
+  
+  - Hive Services
+    
+    <img src="images/No_SQL_Big_data/Hive_service.jpg" title="" alt="Hive" data-align="center">
+    
+    - Hive Server to enable queries
+    
+    - The driver receives query statements
+    
+    - The optimizer is used to split tasks efficiently
+    
+    - The executor executes tasks after the optimizer
+    
+    - Metastore stores the metadata information about the tables
+
 
 
 
