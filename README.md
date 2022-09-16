@@ -71,22 +71,6 @@ spec:
 
 - *e.g.* `kubectl get pods --selector=app=nginx`
 
-**Controller Objects**
-
-- We can instead declare a controller object whose job is to manage the state of the Pods. Some examples of these objects: Deployments, StatefulSets, DaemonSets, and Jobs.
-
-- Deployments are a great choice for long-lived software components like web servers, especially when we want to manage them as a group. In our example, when kube-scheduler schedules Pods for a Deployment, it notifies the kube-APIserver.
-
-- Deployments ensure that sets of Pods are running
-
-- <img src="images\k8s_deployments_scheduler.PNG" title="" alt="a" data-align="center">
-
-- <img src="images\k8s_deployments_cm.PNG" title="" alt="a" data-align="center">
-
-- <img src="images\k8s_deployments_fail_one_node.PNG" title="" alt="a" data-align="center">
-
-- <img src="images\k8s_deployments_create_pod_again.PNG" title="" alt="a" data-align="center">
-
 **Namespaces**
 
 - So how do you keep everybody's work on your cluster tidy and organized?  Kubernetes allows you to abstract a single physical cluster into multiple clusters known as 'namespaces'. Namespaces provide scope for naming resources such as Pods, Deployments, and controllers.
@@ -118,6 +102,23 @@ spec:
       name: mypod
       namespaces: demo
   ```
+
+#### Controller Objects
+
+- We can instead declare a controller object whose job is to manage the state of the Pods. Some examples of these objects: Deployments, StatefulSets, DaemonSets, and Jobs.
+
+- Deployments are a great choice for long-lived software components like web servers, especially when we want to manage them as a group. In our example, when kube-scheduler schedules Pods for a Deployment, it notifies the kube-APIserver.
+
+- Deployments ensure that sets of Pods are running
+
+- <img src="images\k8s_deployments_scheduler.PNG" title="" alt="a" data-align="center">
+
+- <img src="images\k8s_deployments_cm.PNG" title="" alt="a" data-align="center">
+
+- <img src="images\k8s_deployments_fail_one_node.PNG" title="" alt="a" data-align="center">
+
+- <img src="images\k8s_deployments_create_pod_again.PNG" title="" alt="a" data-align="center">
+
 
 **Service**
 
@@ -328,6 +329,8 @@ There are three principal types of Services: ClusterIP, NodePort and LoadBalanc
 - Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource.
 
 <img title="" src="images/k8s_ingress_resource_example.png" alt="Ingress Resource" data-align="center">
+
+![Ingress](images/ingress_details.jpg)
 
 - An Ingress may be configured to give Services externally-reachable URLs, load balance traffic, terminate SSL / TLS, and offer name-based virtual hosting. An Ingress controller is responsible for fulfilling the Ingress, usually with a load balancer, though it may also configure your edge router or additional frontends to help handle the traffic.
 
