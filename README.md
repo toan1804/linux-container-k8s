@@ -119,7 +119,6 @@ spec:
 
 - <img src="images\k8s_deployments_create_pod_again.PNG" title="" alt="a" data-align="center">
 
-
 **Service**
 
 Services provide load-balanced access to specified Pods. There are three primary types of Services:

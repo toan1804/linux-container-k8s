@@ -1292,7 +1292,7 @@ NoSQL Database categories:
     
     - Query time
     
-    - Momory consumption
+    - Memory consumption
   
   - Save organiztions time and money
 
@@ -1430,7 +1430,7 @@ NoSQL Database categories:
 
 - Driver Deploy Modes
   
-  There are two deloy modes:
+  There are two deploy modes:
   
   - Client Mode - the application submitter launches the driver process outside the cluster
   
@@ -1636,6 +1636,91 @@ NoSQL Database categories:
   - Use in local mode or with a cluster, same options as 'spark-submit'
   
   - Can initiate in Scala ('bin/spark-shell') and Python ('bin/pyspark')
+
+##### Setting Apache Spark Configuration
+
+- Spark Configuration Types
+  
+  ![Spark](images/No_SQL_Big_data/Spark_config_type.jpg)
+
+- Spark Configuration Location
+  
+  - Configuration files are located under the `conf/` directory in the Spark installation
+  
+  - Files are not created by default, however Spark provides template files that can be renamed as shown in the table
+    
+    ![Spark](images/No_SQL_Big_data/Spark_config_location.jpg)
+
+- Spark Property Configuration
+  
+  You can set properties:
+  
+  1. Programmatically when creating SparkSession or using a SparkConf object
+  
+  2. In the file `conf/spark-defaults.conf`
+  
+  3. When lauching `spark-submit` with arguments `--master`, or `--conf <key>=<value>`
+     
+     ```bash
+     # Set the master and additional conf when creating session
+     spark = SparkSession \
+         .builder\
+         .master("spark://<master-url>:7077")\
+         .config("<key>", "<value>")\
+         .getOrCreate()
+     ```
+
+- Spark Property Precedence
+  
+  Spark properties use the following predence and are merged into a final configuration before running the application
+  
+  ![Spark](images/No_SQL_Big_data/Spark_property_precedence.jpg)
+
+- Where to Use Static Configuration
+  
+  Set static configuration programmatically inside the appplication for:
+  
+  - Values that do not change from run to run
+  
+  - Properties related to the application, not deployment
+  
+  For example, application name does not change if running in cluster versus local mode
+  
+  ```bash
+  spark = SparkSession\
+      .builder\
+      .appName("MySparkAppliaction")\
+      .config("spark.driver.maxResultSize", "2g")\
+      .getOrCreate()
+  ```
+
+- When to Use Dynamic Configuration
+  
+  Setting some configuration dynamically when launching `spark-submit` means avoiding hard-coding values, sush as:
+  
+  - Changing which cluster the app is submitted to
+  
+  - Adjusting how many cores are used by the executors
+  
+  - Adjusting how much memory is reserved by each executor
+
+- Using Environment Variables
+  
+  Environment variables are machine specific:
+  
+  - Spark loads environment variables from `conf/spark-env.sh` if it exists and is executable
+  
+  - Common example is to set the Python executable used by PySpark driver and workers with `PYSPARK_PYTHON`
+  
+  - This helps ensure all cluster nodes use the same Python version
+
+- Configuring Spark Logging
+  
+  Spark reads logging configuration in the file `conf/log4j.properties`, where you:
+  
+  - Set a log level to control logging output of driver and executor processes
+  
+  - Control master and worker logging for Spark Standalone
 
 #### Monitoring & Tuning
 
