@@ -489,7 +489,7 @@ A variation of bit packing for when an attribute's values are "mostly" less than
 
 - The remaining values that cannot be compressed are stored in their raw form.
 
-![](images\mostly_encoding.PNG)
+<img title="" src="images\mostly_encoding.PNG" alt="" data-align="inline">
 
 #### Intermediate Results
 
