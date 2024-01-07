@@ -461,7 +461,7 @@ Store 32-bit integers in a compact two-level indexing data structure.
 
 Used in Lucene, Hive, Spark, Pinot.
 
-<img title="" src="images\roaring_bitmap.png" alt="" data-align="inline">
+<img title="" src="images\roaring_bitmap.PNG" alt="" data-align="inline">
 
 ###### Delta Encoding
 
@@ -481,7 +481,7 @@ Use bit-shifting tricks to operate on multiple values in a single word.
 
 - Like in BitWeaving/Vertical.
 
-<img src="images\bit_packing.png" title="" alt="" data-align="center">
+<img src="images\bit_packing.PNG" title="" alt="" data-align="center">
 
 ###### Mostly Encoding
 
@@ -489,7 +489,7 @@ A variation of bit packing for when an attribute's values are "mostly" less than
 
 - The remaining values that cannot be compressed are stored in their raw form.
 
-![](images\mostly_encoding.png)
+![](images\mostly_encoding.PNG)
 
 #### Intermediate Results
 
