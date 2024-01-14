@@ -504,3 +504,284 @@ Dictionary encoding is not always the most effective compression scheme, but it 
 The DBMS can combine different approaches for even better compression.
 
 ---
+
+### Query Execution & Processing Models
+
+#### Execution Optimization
+
+DBMS engineering is an orchestration of a bunch of optimizations that seek to make full use of hardware. There is not a single technique that is more important than others.
+
+Top-3 Optimizations:
+
+- Data Parallelization (Vectorization)
+
+- Task Parallelization (Multi-threading)
+
+- Code Specialization (Compilation)
+
+#### Optimization Goals
+
+- Approach #1: Reduce Instruction Count
+  
+  - Use fewer instructions to do the same amount of work.
+
+- Approach #2: Reduce Cycles per Instruction
+  
+  - Execute more CPU instructions in fewer cycles.
+
+- Approach #3: Parallelize Execution
+  
+  - Use multiple threads to compute each query in parallel.
+
+#### Query Execution
+
+A query plan is a  DAG of `operators`.
+
+An `operator instance` is an invocation of an  operator on a unique segment of data.
+
+A `task` is a sequence of one or more operator instances (also sometimes referred to as a `pipeline`).
+
+<img title="" src="images/query_execution.png" alt="" data-align="center">
+
+#### CPU Overview
+
+CPUs organize instructions into `pipeline stages`.
+
+The goal is to keep all parts of the processor busy at each cycle by masking delays from instructions that cannot complete in a single cycle.
+
+Super-scalar CPUs support multiple pipelines.
+
+- Execute multiple instructions in parallel in a single cycle if they are independent (out-of-order execution).
+
+Everything is fast until there is a mistake...
+
+##### DBMS / CPU Problems
+
+Problem #1: Dependencies
+
+- If one instruction depends on another instruction, then it cannot be pushed immediately into the same pipeline.
+
+Problem #2: Branch Prediction
+
+- The CPU tries to predict what branch the program will take and fill in the pipeline with its instructions.
+
+- If it gets it wrong, it must throw away any speculative work and flush the pipeline.
+
+##### Branch Misprediction
+
+Because of long pipelines, CPU will speculatively execute branches. This potentially hides the long stalls between dependent instructions.
+
+The most executed branching code in a DBMS is the filter operation during a sequential scan. But this is (nearly) impossible to predict correctly.
+
+##### Selection Scans
+
+From a example:
+
+```sql
+SELECT * FROM table
+WHERE key > $(low) AND key < $(high)
+```
+
+- Scalar (Branching):
+  
+  ```python
+  i = 0
+  for t in table:
+      key = t.key
+      if (key>low) && (key<high):
+          copy(t, output[i])
+          i = i + 1
+  ```
+
+- Scalar (Branchless):
+  
+  ```python
+  i = 0
+  for t in table:
+      copy(t, output[i])
+      key = t.key
+      delta = key>low ? 1 : 0) & (key<high ? 1 : 0)
+      i = i + delta
+  ```
+
+`Note`: Use branchless for better performances.
+
+#### Excessive Instructions
+
+The DBMS needs to support different data types, so it must check a values type before it performs any operation on that value.
+
+- This is usually implemented as giant switch statements.
+
+- Also creates more branches that can be difficult for the CPU to predict reliably.
+
+Example: Postgres addition for `NUMERIC` types.
+
+#### Processing Model
+
+A DBMS's `processing model` defines how the system executes a query plan.
+
+- Different trade-offs for workloads (OLTP vs. OLAP).
+
+Approach #1: **Iterator Model**
+
+Approach #2: **Materialization Model**
+
+Approach #3: **Vectorized / Batch Model**
+
+###### Iterator Model
+
+Each query plan operator implements a *next* function.
+
+- On each invocation, the operator returns either a single tuple or a null marker if there are no more tuples.
+
+- The operator implements a loop that calls next on its children to retrieve their tuples and then process them.
+
+Also called *Volcano* or *Pipeline* Model.
+
+Example flow:
+
+<img title="" src="images/iterator_model_ex1.png" alt="" data-align="inline">
+
+<img title="" src="images/iterator_model_ex2.png" alt="" data-align="inline">
+
+This is used in almost every DBMS. Allows for tuple **pipelining**.
+
+Some operators must block until their children emit all their tuples.
+
+- Joins, Subqueries, Order By
+
+Output control works easily with this approach.
+
+###### Materialization Model
+
+Each operator processes its input all at once and then emits its output all at one.
+
+- The operator "materializes" its output as a single result.
+
+- The DBMS can push down hints (e.g., LIMIT) to avoid scanning too many tuples.
+
+- Can send either a materialized row or a single column.
+
+The output can be either whole tuples (NSM) or subsets of columns (DSM).
+
+Example flow:
+
+<img title="" src="images/materialization_model_ex.png" alt="" data-align="inline">
+
+Better for OLTP workloads because queries only access a small number of tuples at a time.
+
+- Lower execution / coordination overhead.
+
+- Fewer function calls.
+
+Not good for OLAP queries with large intermediate results.
+
+###### Vectorization Model
+
+Like the Iterator Model where each operator implements a `next` function, but...
+
+Each operator emits a **batch** of tuples instead of a single tuple.
+
+- The operator's internal loop processes multiple tuples at a time.
+
+- The size of the batch can vary based on hardware or queries properties.
+
+Example flow:
+
+<img src="images/vectorization_model_ex.png" title="" alt="" data-align="center">
+
+Ideal for OLAP queries because it greatly reduces the number of invocations per operator.
+
+Allows for operators to more easily use vectorized (SIMD) instructions to process batches of tuples.
+
+#### Plan Processing Direction
+
+**Approach #1: Top-to-Bottom (Pull)**
+
+- Start with the root and "pull" data up from its children.
+
+- Tuples are always passed with function calls.
+
+**Approach #2: Bottom-to-Top (Push)**
+
+- Start with leaf nodes and "push" data to their parents.
+
+##### Push-Based Iterator Model
+
+<img src="images/push_base_iterator.png" title="" alt="" data-align="center">
+
+##### Plan Processing Direction
+
+**Approach #1: Top-to-Bottom (Pull)**
+
+- Easy to control output via `LIMIT`.
+
+- Parent operator blocks until its child returns with a tuple.
+
+- Additional overhead because operators' `next` functions are implemented as virtual functions.
+
+- Branching costs on each `next` invocation.
+
+**Approach #2: Bottom-to-Top (Push)**
+
+- Allows for tighter control of caches/registers in pipelines.
+
+- Difficult to control output via `LIMIT`.
+
+- Difficult to implement Sort-Merge Join.
+
+#### Parallel Execution
+
+The DBMS executes multiple tasks simultaneously to improve hardware utilization.
+
+- Active tasks do not need to belong to the same query.
+
+**Approach #1: Inter-Query Parallelism**
+
+**Approach #2: Intra-Query Parallelism**
+
+##### Inter-Query Parallelism
+
+Improve overall proformance by allowing multiple queries to execute simultaneously.
+
+- Most DBMSs use a simple first-come, first-served policy.
+
+OLAP queries have parallelizable and non-parallelizable phases. The goal is to always keep all cores active.
+
+##### Intra-Query Parallelism
+
+Improve the performance of a single query by executing its operators in parallel.
+
+**Approach #1: Intra-Operator (Horizontal)**
+
+**Approach #2: Inter-Operator (Vertical)**
+
+These techniques are not mutually exclusive.
+
+There are parallel algorithms for every relational operator.
+
+##### Intra-Operator Parallelism
+
+**Approach #1: Intra-Operator (Horizontal)**
+
+- Operators are decomposed into independent instances that perform the same function on different subsets of data.
+
+The DBMS inserts an `exchange` operator into the query plan to coalesce results from children operators.
+
+<img src="images/intra-operator_pal.png" title="" alt="" data-align="center">
+
+##### Inter-Operator Parallelism
+
+**Approach #2: Inter-Operator (Vertical)**
+
+- Operations are overlapped in order to pipeline data from one stage to the next without materialization.
+
+- Workers execute multiple operators from different segments of a query plan at the same time.
+
+- Still need exchange operators to combine intermediate results from segments.
+
+Also called **pipelined parallelism**.
+
+<img title="" src="images/inter-operator_pal.png" alt="" data-align="inline">
+
+---
