@@ -785,3 +785,399 @@ Also called **pipelined parallelism**.
 <img title="" src="images/inter-operator_pal.png" alt="" data-align="inline">
 
 ---
+
+### Query Scheduling
+
+#### Scheduling
+
+For each query plan, the DBMS must provide where, when, and how to execute it.
+
+- How many tasks should it use?
+
+- How many CPU cores should it use?
+
+- What CPU core should the tasks execute on?
+
+- Where should a task store its output?
+
+The DBMS *always* knows more than the OS.
+
+##### Scheduling Goals
+
+**Goal #1: Throughput**
+
+- Maximize the # of completed queries.
+
+**Goal #2: Fairness**
+
+- Ensure that no query is starved for resources.
+
+**Goal #3: Query Responsiveness**
+
+- Minimize tail latencies (especially for short queries)
+
+**Goal #4: Low Overhead**
+
+- Workers should spend most of their time executiong tasks not figuring out what task to run next.
+
+##### Process Model
+
+A DBMS's **process model** defines how the system is architected to support concurrent requests from a multi-user application.
+
+A **worker** is the DBMS component that is responsible for executing tasks on behalf of the client and returning the results.
+
+We will assume that the DBMS is multi-threaded.
+
+##### Worker Allocation
+
+**Approach #1: One Worker per Core**
+
+- Each core is assigned one thread that is pinned to that core in the OS.
+
+- See [sched_setaffinity](https://man7.org/linux/man-pages/man2/sched_setaffinity.2.html).
+
+**Approach #2: Multiple Workers per Core**
+
+- Use a pool of workers per core (or per socket).
+
+- Allows CPU cores to be fully utilized in case one worker at a core blocks.
+
+##### Task Assignment
+
+**Approach #1: Push**
+
+- A centralized dispatcher assigns tasks to workers and monitors their progress.
+
+- When the worker notifies the dispatcher that it is finished it is given a new task.
+
+**Approach #2: Pull**
+
+- Workers pull the next task from a queue, process it, and then return to get the next task.
+
+*Notes:*
+
+- Regardless of what worker allocation or task assignment policy the DBMS uses, it's important that workers operate on local data.
+
+- The DBMS's scheduler must be aware of its hardware memory layout.
+  
+  - Uniform vs. None-Uniform Memory Access
+
+**Uniform Memory Access (Used in Old Systems)**
+
+<img title="" src="images/uniform_memory_access.png" alt="" data-align="inline">
+
+**Non-Uniform Memory Access (Used in Modern Systems)**
+
+<img title="" src="images/non-uniform_memory_access.png" alt="" data-align="inline">
+
+#### Data Placement
+
+The DBMS can partition memory for a database and assign each partition to a CPU.
+
+By controlling and tracking the location of partitions, it can schedule operators to execute on workers at the closest CPU core.
+
+See Linux’s [move_pages](https://man7.org/linux/man-pages/man2/move_pages.2.html) and [numactl](https://linux.die.net/man/8/numactl)
+
+##### Memory Allocation
+
+What happens when the DBMS calls `malloc`?
+
+- Assume that the allocator doesn't already have a chunk of memory that it can give out.
+
+Almost nothing:
+
+- The allocator will extend the process' data segment.
+
+- But this new virtual memory is not immediately backed by physical memory.
+
+- The OS only allocates physical memory when there is a page fault on access.
+
+Now after a page fault, where does the OS allocate physical memory in a NUMA (Non-Uniorm Memory Access) system?
+
+##### Memory Allocation Location
+
+**Approach #1: Interleaving**
+
+- Distribute allocated memory uniformly across CPUs.
+
+**Approach #2: First-Touch**
+
+- At the CPU of the thread that accessed the memory location that caused the page fault.
+
+The OS can try to move memory to another NUMA region from observed access patterns.
+
+<img title="" src="images/data_placement_compare.png" alt="a" data-align="inline">
+
+##### Partitioning Vs. Placement
+
+A **partitioning** scheme is used to split the database based on some policy.
+
+- Round-robin
+
+- Attribute Ranges
+
+- Hashing
+
+- Partial/Full Replication
+
+A **placement** scheme then tells the DBMS where to put those partitions.
+
+- Round-robin
+
+- Interleave across cores
+
+###### Observation
+
+We have the following so far:
+
+- Task Assigment Model
+
+- Data Placement Policy
+
+But how to we decide how to create a set of tasks from a logical query plan?
+
+- This is relatively easy for OLTP queries. (because it's maybe one pipeline, one task to assign to a worker and be done with it)
+
+- Much harder for OLAP queries... (the queries can be more complicated and can depencencies between these tasks or these pipelines)
+
+##### Static Scheduling
+
+The DBMS decides how many threads to use to execute the query when it generates the plan.
+
+It does *not* change while the query executes.
+
+- The easiest approach is to just use the same # of tasks as the # of cores.
+
+- Can still assign tasks to threads based on data location to maximize local data processing.
+
+##### Morsel-Driven Scheduling
+
+Dynamic scheduling of tasks that operate over horizontal partitions called "morsels" distributed across cores.
+
+- One worker per core.
+
+- One morsel per task.
+
+- Pull-based task assignment.
+
+- Round-robin data placement.
+
+Supports parallel, NUMA-aware operator implementations.
+
+###### Hyper - Architecture
+
+No separate dispatcher thread.
+
+The workers perform cooperative scheduling for each query plan using a single task queue.
+
+- Each worker tries to select tasks that will execute on morsels that are local to it.
+
+- If there are no local tasks, then the worker just pulls the next task from the global work queue.
+
+###### Hyper - Data Partitioning
+
+<img title="" src="images/hyper_data_partitioning.png" alt="hyper" data-align="inline">
+
+###### Hyper - Execution Example
+
+- Morsel read their local data to build a hash table:
+  
+  <img title="" src="images/hyper_morsel_read_local_data.png" alt="hyper" data-align="inline">
+
+- Morsel write it to Buffer Memory:
+  
+  <img title="" src="images/hyper_morsel_write_to_buffer.png" alt="hyper" data-align="inline">
+
+- Wait for all tasks are done:
+  
+  <img title="" src="images/hyper_morsel_wait_for_all_tasks_done.png" alt="hyper" data-align="inline">
+
+- Execute the next one:
+  
+  <img title="" src="images/hyper_morsel_execute_the_next_one.png" alt="hyper" data-align="inline">
+
+- Say this one guy finishes:
+  
+  <img title="" src="images/hyper_morsel_say_this_one_guy_finished.png" alt="hyper" data-align="inline">
+
+- then it goes up this Global task queue and it can pick another task run, if there's no task that prefers or wants to run on this new region, we pulled out, poach it, steal it and actually run it:
+  
+  <img title="" src="images/hyper_morsel_run_another_task_when_done.png" alt="hyper" data-align="inline">
+
+Because there is only one worker per core and one morsel per task, HyPer must use work stealing because otherwise threads could sit idle waiting for stragglers.
+
+The DBMS uses a lock-free hash table to maintain the global work queues.
+
+Tasks can be have different execution costs per tuple.
+
+- Example: Simple Selection vs. String Matching.
+
+HyPer also has no notion of execution priorities.
+
+- All query tasks are executed with the same.
+
+- Short-running queries get blocked behind long-running queries.
+
+##### UMBRA - Morsel Scheduling 2.0
+
+Tasks are not created statically at runtime.
+
+Each task may contain multiple morsels.
+
+Modern implementation of stride scheduling.
+
+Priority decay.
+
+###### UMBRA - Stride Scheduling
+
+Each worker maintains its own thread-local meta-data about the available tasks to execute.
+
+- **Active Slots:** Which entries in the global slot array have active task sets available.
+
+- **Change Mask:** Indicates when a new task set is added to the global slot array.
+
+- **Return Mask:** Indicates when a worker completes a task set.
+
+Workers perform CaS updates to TLS meta-data to broadcast changes.
+
+<img title="" src="images/umbra_ex1.png" alt="umbra" data-align="center">
+
+- When a worker completes the last morsel for a query's active task set:
+
+<img src="images/umbra_sub_task_done.png" title="" alt="umbra" data-align="center">
+
+- It inserts the next task set into global slot array:
+
+<img src="images/umbra_inserts_next_task_set.png" title="" alt="umbra" data-align="center">
+
+- And updates the return mask for all workers:
+  
+  <img src="images/umbra_update_the_return_mask.png" title="" alt="umbra" data-align="center">
+
+##### SAP HANA - NUMA-Aware Scheduler
+
+Pull-based scheduling with multiple worker threads that are organized into groups (pools).
+
+- Each CPU can have multiple groups.
+
+- Each group has a soft and hard priority queue.
+
+Uses a seperate "watchdog" thread to check whether groups are saturated and can reassign tasks dynamically.
+
+##### SAP HANA - Thread Groups
+
+DBMS maintain `soft` and `hard` priority task queues for each thread group.
+
+- Threads can steal tasks from other group's soft queues.
+
+Four different pools of thread per group:
+
+- **Working:** Active executing a task.
+
+- **Inactive:** Blocked inside of the kernel due to a latch.
+
+- **Free:** Sleeps for a little, wake up to see whether there is a new task to execute.
+
+- **Parked:** Waiting for a task (like a free thread) but blocked in the kernel until the watchdog thread wakes it up.
+
+##### SAP HANA - NUMA-Aware Scheduler
+
+Dynamically adjust thread pinning based on whether a task is CPU or memory bound.
+
+- Allow more cross-region stealing if DBMS is CPU-bound.
+
+SAP found that work stealing was not as beneficial for systems with a larger number of sockets.
+
+- HyPer (2-4 sockets) vs. HANA (64 sockets)
+
+Using thread groups allows cores to execute other tasks instead of just only queries.
+
+Example:
+
+<img title="" src="images/hana_example.png" alt="hana" data-align="inline">
+
+In the above example, the first tasks we want to execute go to the `Soft Queue`. And the garbage collector that we wanted this only run on local memory, we'll put these to the `Hard Queue` and this will prevent anybody from stealing them.
+
+Now our working threads can wake up and they go pull things out of `Soft Queue` and can start running:
+
+<img title="" src="images/hana_working_threads_wake_up.png" alt="hana" data-align="inline">
+
+Other threads are waiting for some latch.
+
+The free threads will wake up and it'll look in these queues and finds something in the `Hard Queue`:
+
+<img title="" src="images/hana_free_threads_wake_up.png" alt="hana" data-align="inline">
+
+So then it changes into the working pool and it can execute:
+
+<img title="" src="images/hana_free_thread_execute.png" alt="hana" data-align="inline">
+
+##### SQL Server - SQLOS
+
+**SQLOS** is a user-mode NUMA-aware OS layer that runs inside of the DBMS and manages provisioned hardware resources.
+
+- Determines which tasks are scheduled onto which threads.
+
+- Also manages I/O scheduling and higher-level concepts like logical database locks.
+
+Non-preemptive thread scheduling through instrumented DBMS code.
+
+**SQLOS** quantum is 4ms but the scheduler cannot enforce that.
+
+```sql
+SELECT * FROM R WHERE R.val = ?
+```
+
+Approximate Plan:
+
+```python
+for t in R:
+    if eval(predicate, tuple, params):
+        emit(tuple)
+```
+
+DBMS developers must add explicit `yield` calls in various locations in the source code.
+
+```python
+last = now()
+for tuple in R:
+    if now() - last > 4ms:
+        yield # this is the different for yield
+        last = now()
+    if eval(predicate, tuple params):
+        emit(tuple)
+```
+
+Other Examples:
+
+- ScyllaDB
+
+- FaunaDB
+
+- CoroBase
+
+#### Observation
+
+- If requests arrive at the DBMS faster than it can execute them, then the system becomes overloaded.
+
+- The OS cannot help us here because it does not know what threads are doing:
+  
+  - CPU Bound: Do nothing
+  
+  - Memory Bound: OOM
+
+- Easiest DBMS Solution: Crash
+
+##### Flow Control
+
+**Approach #1: Admission Control**
+
+- Abort new requests when the system believes that it will not have enough resources to execute that request.
+
+**Approach #2: Throttling**
+
+- Delay the responses to clients to increase the amount of time between requests.
+
+- This assumes a synchronous submission scheme.
+
+---
