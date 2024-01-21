@@ -1181,3 +1181,447 @@ Other Examples:
 - This assumes a synchronous submission scheme.
 
 ---
+
+### Vectorized Query Execution with SIMD
+
+#### Vectorization
+
+The process of converting an algorithm's scalar implementation that processes a single pair of operands at a time, to a vector implementation that processes one operation on multiple pairs of operands at once.
+
+###### Why this matters
+
+Say we can parallelize out algorithm over 32 cores. Assume each core has a 4-wide SIMD registers.
+
+**Potential Speed-up:** 32*x* x 4*x* = 128*x*
+
+##### Single Instruction, Multiple Data (SIMD)
+
+A class of CPU instructions that allow the processor to perform the same operation on multiple data points simultaneously.
+
+All major ISAs have microarchitecture support SIMD operations.
+
+- **x86:** MMX, SSE, SSE2, SSE3, SSE4, AVX, AVX2, AVX512
+
+- **PowerPC:** Altivec
+
+- **ARM:** NEON, SVE
+
+- **RISC-V:** RVV
+
+###### SIMD Example
+
+- SISD (Single Instruction, Single Data):
+
+<img title="" src="images/SISD_example.png" alt="SISD" data-align="inline">
+
+- SIMD:
+
+<img title="" src="images/SIMD_example.png" alt="SIMD" data-align="inline">
+
+##### Vectorization Direction
+
+**Approach #1: Horizontal**
+
+- Perform operation on all elements together within a single vector.
+  
+  <img src="images/SIMD_horizontal.png" title="" alt="SIMD" data-align="center">
+
+**Approach #2: Vertical**
+
+- Perform operation in an elementwise manner on elements of each vertor.
+  
+  <img src="images/SIMD_vertical.png" title="" alt="SIMD" data-align="center">
+
+#### SIMD Instructions
+
+**Data Movement**
+
+- Moving data in and out of vector registers
+
+**Arithmetic Operations**
+
+- Apply operation on multiple data items (e.g., 2 doubles, 4 floats, 16 bytes)
+
+- Example: `ADD`, `SUB`, `MUL`, `DIV`, `SQRT`, `MAX`, `MIN`
+
+**Logical Instructions**
+
+- Logical operations on multiple data items
+
+- Example: `AND`, `OR`, `XOR`, `ANDN`, `ANDPS`, `ANDNPS`
+
+**Comparison Instructions**
+
+- Comparing multiple data items (`==`, `<`, `<=`, `>`, `>=`, `!=`)
+
+**Shuffle Instructions**
+
+- Move data between SIMD registers
+
+**Miscellaneous**
+
+- Conversion: Transform data between x86 and SIMD registers.
+
+- Cache Control: Move data directly from SIMD registers to memory (bypassing CPU cache).
+
+##### Intel SIMD Extensions
+
+<img title="" src="images/Intel_SIMD_extensions.png" alt="SIMD" data-align="inline">
+
+#### SIMD TRADE-OFFS
+
+**Advantages:**
+
+- Significant performance gains and resource utilization if an algorithm can be vectorized.
+
+**Disadvantages:**
+
+- Implementing an algorithm using SIMD is still mostly a manual process.
+
+- SIMD may have restrictions on data alignment.
+
+- Gathering data into SIMD registers and scattering it to the correct locations is tricky and/or inefficient. => `NO LONGER TRUE IN AVX-512!`
+
+##### AVX-512
+
+Intel's 512-bit extensions to the AVX2 instructions.
+
+- Provides new operations to support data conversions, scatter, and permutations.
+
+Unlike previous SIMD extensions, Intel split AVX-512 into groups that CPUs can selectively provide (expect for "foundation" extension AVX-512F).
+
+#### Implementation
+
+**Choice #1: Automatic Vectorization**
+
+**Choice #2: Compiler Hints**
+
+**Choice #3: Explicit Vectorization**
+
+##### Automatic Vectorization
+
+The compiler can identify where instructions inside of a loop can be rewritten as a vectorized operation.
+
+Works for simple loops only and is rare in database operators. Requires hardware support for SIMD instructions.
+
+- Example:
+  
+  <img title="" src="images/automative_vectorization.png" alt="Auto" data-align="center">
+
+- In the above example, this loop is not legal to automatically vectorize.
+
+- The code is written such that the addition is described sequentially.
+
+##### Compiler Hints
+
+Provide the compiler with additional information about the code to let it know that is safe to vectorize.
+
+Two approaches:
+
+- Give explicit information about memory locations.
+
+- Tell the compiler to ignore vector dependencies.
+
+The `restrict` keyword in C++ tells the compiler that the arrays are distinct locations in memory.
+
+```cpp
+void add(int *restrict X,
+         int *restrict Y,
+         int *restrict Z) {
+  for (int i=0; i<MAX; i++) {
+    Z[i] = X[i] + Y[i];
+  }
+}
+```
+
+Or using #pragma `ivdep`
+
+```cpp
+void add(int *restrict X,
+         int *restrict Y,
+         int *restrict Z) {
+#pragma ivdep
+  for (int i=0; i<MAX; i++) {
+    Z[i] = X[i] + Y[i];
+  }
+}
+```
+
+- This `pragma` tells the compiler to ignore loop dependencies for the vectors.
+
+- It is up to the DBMS developer to make sure that this is correct.
+
+##### Explicit Vectorization
+
+Use CPU intrinsics to manually marshal data between SIMD registers and execute vectorized instructions.
+
+- Not portable across CPUs (ISAs / versions).
+
+There are libraries that hide the underlying calls to SIMD intrinsics.
+
+- [Google Highway](https://github.com/google/highway)
+
+- [Simd](https://github.com/ermig1979/Simd)
+
+- [Expressive Vector Engine (EVE)](https://github.com/jfalcou/eve)
+
+- [std::simd - Rust (rust-lang.org)](https://doc.rust-lang.org/std/simd/index.html)
+
+Example:
+
+```cpp
+void add(int *X,
+         int *Y,
+         int *Z) {
+  __mm128i *vecX = (__m128i*)X;
+  __mm128i *vecY = (__m128i*)Y;
+  __mm128i *vecZ = (__m128i*)Z;
+  for (int i=0; i<MAX/4; i++) {
+    _mm_store_si128(vecZ++, _mm_add_epi32(*vecX++, *vecY++));
+  }
+}
+```
+
+- Store the vectors in 128-bit SIMD registers.
+
+- Then invoke the intrinsic to add together the vectors and write them to the output location.
+
+#### Vectorization Fundamentals
+
+There are fundamental SIMD operations that the DBMS will use to build more complex functionality:
+
+- Masking
+
+- Permute
+
+- Selective Load/Store
+
+- Compress/Expand
+
+- Selective Gather/Scatter
+
+##### SIMD Masking
+
+Almost all AVX-512 operations support `predication` variants whereby the CPU only performs operations on lanes specified by an input bitmask.
+
+Example:
+
+<img src="images/SIMD_masking_input.png" title="" alt="SIMD" data-align="center">
+
+- Plus `Vector` with `Mask` is 1:
+
+<img src="images/SIMD_masking_vector.png" title="" alt="SIMD" data-align="center">
+
+- Merge source when `Mask` is 0:
+
+<img src="images/SIMD_masking_merge_source.png" title="" alt="SIMD" data-align="center">
+
+##### SIMD Permute
+
+For each lane, copy values in the **input vector** specified by the offset in the **index vector** into the **destination vector**.
+
+Prior to AVX-512, the DBMS had to write data from the SIMD register to memory then back to the SIMD register.
+
+Example:
+
+<img src="images/SIMD_permute.png" title="" alt="SIMD" data-align="center">
+
+##### Selective Load/Store
+
+<img title="" src="images/SIMD_selective_load_store.png" alt="SIMD" data-align="inline">
+
+##### Compress / Expand
+
+<img title="" src="images/SIMD_compress_expand.png" alt="SIMD" data-align="inline">
+
+##### Selective Scatter/Gather
+
+Selective Gather:
+
+- Input:
+  
+  <img title="" src="images/SIMD_selective_gather_input.png" alt="SIMD" data-align="inline">
+
+- Gather one:
+  
+  <img title="" src="images/SIMD_selective_gather_select_first.png" alt="SIMD" data-align="inline">
+
+- Gather all:
+  
+  <img title="" src="images/SIMD_selective_gather_select_all.png" alt="SIMD" data-align="inline">
+
+Selective Scatter:
+
+- Input:
+  
+  <img title="" src="images/SIMD_selective_scatter_input.png" alt="SIMD" data-align="inline">
+
+- Scatter one:
+  
+  <img title="" src="images/SIMD_selective_scatter_scatter_one.png" alt="SIMD" data-align="inline">
+
+- Scatter all:
+  
+  <img title="" src="images/SIMD_selective_scatter_scatter_all.png" alt="SIMD" data-align="inline">
+
+#### Vectorized DBMS Algorithms
+
+Principles for efficient vectorization by using fundamental vector operations to construct more advanced functionality.
+
+- Favor *vertical* vectorization by processing different input data per lane.
+
+- Maximize lane utilization by executing unique data items per lane subset (i.e., no useless computations).
+
+##### Vectorized Operators
+
+- Selection Scans
+
+- Hash Tables
+
+- Partitioning / Histograms
+
+##### Selection Scans
+
+Scalar (Branchless):
+
+<img title="" src="images/SIMD_selection_scan_scalar.png" alt="SIMD" data-align="center">
+
+Vectorized:
+
+<img src="images/SIMD_selection_scan_vectorized.png" title="" alt="SIMD" data-align="center">
+
+##### Observation
+
+For each batch, the SIMD vectors may contain tuples that are no longer valid (they were disqualified by some previous check).
+
+Let's look at an example:
+
+<img title="" src="images/SIMD_observation_exp.png" alt="SIMD" data-align="inline">
+
+- The issue is that if say this is our query plan here in a scalar version of this.
+
+![SIMD](images/SIMD_observation_filter.png)
+
+- We want to be able to sort of vectorize this point but again the problem is going to be like: If I can vectorize this aggregation look up then I only have some of the tuples matching in this. Then when I do my aggregation, I'm not going to get the full benefit of SIMD because I'm going to be doing wasted work or I have to do stuff to make sure to throw out the things that shouldn't be aggregating.
+
+- The next pipeline is emit:
+
+![SIMD](images/SIMD_observation_emit.png)
+
+##### Relaxed Operator Fusion
+
+Vectorized processing model designed for query compilation execution engines.
+
+Decompose pipelines into `stage` that operate on vectors of tuples.
+
+- Each stage may contain multiple operators.
+
+- Communicate through cache-resident buffers.
+
+- Stages are granularity of vectorization + fusion.
+
+Example:
+
+<img title="" src="images/SIMD_ROF_example.png" alt="SIMD" data-align="inline">
+
+- In the above example, we introduce the `Stage Buffer` that we can do the `Stage #1` as much as possible and until our stage buffer is full. If tuples we know have satisfied our predicate, then we move on to the the next stage (`Stage #2`).
+
+- Pseudo code:
+
+<img title="" src="images/SIMD_ROF_pseudo_code.png" alt="SIMD" data-align="inline">
+
+##### ROF Software Prefetching
+
+The DBMS can tell the CPU to grab the next vector while it works on the current batch.
+
+- Prefetch-enabled operators define start of new stage.
+
+- Hides the cache miss latency.
+
+Any prefetching technique is suitable
+
+- Group prefetching, software pipelining, AMAC.
+
+- Group prefetching works and is simple to implement.
+
+<img title="" src="images/SIMD_ROF_evaluation.png" alt="SIMD" data-align="inline">
+
+##### Hash Tables - Probing
+
+Scalar:
+
+<img title="" src="images/SIMD_hash_table_scalar.png" alt="SIMD" data-align="inline">
+
+Vectorized(Horizontal):
+
+- One way to vectorize this is to do a horizontal approach where we want to use single input key but then compare it against multiple keys in the hash table at the same time using vectorized instructions.
+
+- So what we're going to do, that is we're going to expand `KEY`, `PAYLOAD` now store `Four Keys` per slot instead of one:
+  
+  <img title="" src="images/SIMD_hash_table_vec_input.png" alt="SIMD" data-align="inline">
+
+- Now when my input key shows up, I hash it just like before, and I land into some offset. But now I'm sitting getting back a single key, I get back a vector `Keys`. Then I'd use my SIMD Comparison to produce my output mask. If I have a one then I know I'm done because I found something that matches my key. But if they're all zeros which I can do in SIMD quickly:
+  
+  <img title="" src="images/SIMD_hash_table_vec_compare.png" alt="SIMD " data-align="inline">
+
+- **Note:** *But this doesn't work just because the key is too large. The cost of getting things out of the hash table putting into `SIMD Compare` becomes too expensive.*
+
+Vectorized (Vertical):
+
+- Input:
+  
+  <img title="" src="images/SIMD_hash_table_vec_ver_input.png" alt="SIMD" data-align="inline">
+
+- We land a bunch of different `Key`, we copy them and do simply `Gather` on those, bring them into a SIMD Vector:
+  
+  <img title="" src="images/SIMD_hash_table_vec_ver_gather.png" alt="SIMD" data-align="inline">
+
+- Do our SIMD comparison across the lanes and then it's going to produce an output Vector with one zeros depending we have a match:
+  
+  <img title="" src="images/SIMD_hash_table_vec_ver_compare.png" alt="SIMD" data-align="inline">
+
+- We go back to compute `Hash Index Vector` and then store it back to the hash tables:
+  
+  <img title="" src="images/SIMD_hash_table_vec_ver_store.png" alt="SIMD " data-align="inline">
+
+Compare:
+
+<img title="" src="images/SIMD_hash_table_compare_performance.png" alt="SIMD" data-align="inline">
+
+**Note:** In `Out of Cahce`, the performance is same because *you don't get any benefit from SIMD when you're outside `L3 cache`*.
+
+##### Partitioning - Histogram
+
+Use scatter and gathers to increment count.
+
+Replicate the histogram to handlle collisions.
+
+- Input:
+  
+  <img title="" src="images/SIMD_histogram_input.png" alt="SIMD" data-align="inline">
+
+- Problem:
+  
+  <img title="" src="images/SIMD_histogram_problem.png" alt="SIMD" data-align="inline">
+
+- Replicated histogram:
+  
+  <img title="" src="images/SIMD_histogram_rep.png" alt="SIMD" data-align="inline">
+
+- Output:
+  
+  <img title="" src="images/SIMD_histogram_out.png" alt="SIMD" data-align="inline">
+
+#### CAVEAT EMPTOR
+
+AVX-512 is **not** always faster than AVX2.
+
+Some CPUs downgrade their clockspeed when switching to AVX-512 mode.
+
+- Compilers will prefer 256-bit SIMD operations.
+
+If only a small portion of the process uses AVX-512, then it is not worth the downclock penalty.
+
+**Note:** [optimization - SIMD instructions lowering CPU frequency - Stack Overflow](https://stackoverflow.com/questions/56852812/simd-instructions-lowering-cpu-frequency/56861355#56861355)
+
+---
