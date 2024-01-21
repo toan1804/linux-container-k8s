@@ -1625,3 +1625,464 @@ If only a small portion of the process uses AVX-512, then it is not worth the do
 **Note:** [optimization - SIMD instructions lowering CPU frequency - Stack Overflow](https://stackoverflow.com/questions/56852812/simd-instructions-lowering-cpu-frequency/56861355#56861355)
 
 ---
+
+### Query Compilation & JIT Code Generation
+
+This part focus on **Reduce Instruction Count**
+
+#### Microsoft Remark
+
+After minimizing the disk I/O during query execution, the only way to increase throughput is to reduce the number of instructions executed.
+
+- To go **10x** faster, the DBMS must execute **90%** fewer instructions.
+
+- To go **100x** faster, the DBMS must execute **99%** fewer instructions.
+
+##### Observation
+
+One way to achieve such a reduction in instructions is through **code specialization**.
+
+This means generating code that is specific to a task in the DBMS (e.g., one query).
+
+Most code is written to make it easy for humans to understand rather than performance...
+
+##### Example Database
+
+Create 3 tables:
+
+```sql
+CREATE TABLE A (
+    id INT PRIMARY KEY,
+    val INT
+);
+
+CREATE TABLE B (
+    id INT PRIMARY KEY,
+    val INT
+);
+
+CREATE TABLE C (
+    a_id INT REFERENCES A(id),
+    b_id INT REFERENCES B(id),
+    PRIMARY KEY (a_id, b_id)
+);
+```
+
+Query Example:
+
+```sql
+SELECT *
+  FROM A, C,
+    (SELECT B.id, COUNT(*)
+       FROM B
+       WHERE B.val = ? + 1
+       GROUP BY B.id) AS B
+  WHERE A.val = 123
+    AND A.id = C.a_id
+    AND B.id = C.b_id
+```
+
+Query interpretation for that query:
+
+- Model tree:
+  
+  <img title="" src="images/query_model_example.png" alt="query" data-align="inline">
+
+- Code tree:
+  
+  <img title="" src="images/query_code_inter_exp.png" alt="query" data-align="inline">
+
+Predicate Interpretation for `B.val = ? + 1`:
+
+<img title="" src="images/query_predicate_exp.png" alt="query" data-align="inline">
+
+##### CODE Specialization
+
+The DBMS generates code for any CPU-intensive task that has a similar execution pattern on different inputs.
+
+- Access Methods
+
+- Stored Procedures
+
+- Query Operator Execution
+
+- Predicate Evaluation        <= *Most Common*
+
+- Logging Operations
+
+<img title="" src="images/code_specialization_exp.png" alt="code" data-align="inline">
+
+**Approach #1: Transpilation**
+
+- Write code that converts a relational query plan into imperative language *source code* and then run it through a conventional compiler to generate native code.
+
+**Approach #2: JIT Compilation**
+
+- Generate an ***intermediate representation*** (IR) of the query that the DBMS then compiles into native code.
+
+#### Architecture Overview
+
+<img title="" src="images/query_architecture_oveview.png" alt="query" data-align="inline">
+
+`SQL Query` go to the `Parser` => `Abstract Syntax Tree` go to `Binder` then check `System Catalog` for DB name, table name, ... => `Annotated AST` go to `Optimizer` => go to `Compiler` => `Native Code`
+
+##### HiQue - Code Generation
+
+For a given query plan, create a C/C++ program that implements that query's execution.
+
+- Bake in all the predicates and type conversions.
+
+Use an off-shelf compiler to convert the code into a shared object, link it to the DBMS process, and then invoke the exec function.
+
+##### HiQue - Operator Templates
+
+```sql
+SELECT * FROM A WHERE A.val = ? + 1
+```
+
+Pseudo Code for above SQL:
+
+```python
+for t in range(table.num_tuples):
+    tuple = get_tuple(table, t)
+    if eval(predicate, tuple, params):
+        emit(tuple)
+```
+
+Interpreted Plan:
+
+<img title="" src="images/hique_interpreted_plan.png" alt="hique" data-align="inline">
+
+<img title="" src="images/hique_interpreted_plan_2.png" alt="hique" data-align="inline">
+
+Templated Plan:
+
+<img title="" src="images/hique_templated_plan.png" alt="hique" data-align="inline">
+
+##### HiQue - DBMS Integration
+
+The generated query code can invoke any other function in the DBMS. This allows it to use all the same components as interpreted queries.
+
+- Network Handlers
+
+- Buffer Pool Manager
+
+- Concurrency Control
+
+- Logging / Checkpoints
+
+- Indexes
+
+Debugging is (relatively) easy because you step through the generated source code.
+
+##### HiQue - Evaluation
+
+**Generic Iterators**
+
+- Canonical model with generic predicate evaluation.
+
+**Optimized Iterators**
+
+- Type-specific iterators with inline predicates.
+
+**Generic Hardcoded**
+
+- Handwritten code with generic iterators/predicates.
+
+**Optimized Hardcoded**
+
+- Direct tuple access with pointer arithmetic.
+
+**HIQUE**
+
+- Query-specific specialized code.
+
+##### Observation
+
+Relational operators are a useful way to reason about a query but are not the most efficient way to execute it.
+
+It takes a (relatively) long time to compile a C/C++ source file into executable code.
+
+HIQUE also does not support for full pipelining.
+
+#### HYPER - JIT Query Compilation
+
+Compile queries in-memory into native code using the LLVM toolkit.
+
+- Instead of emitting C++ code, HyPer emits LLVM IR.
+
+Aggressive operator function within pipelines to keep a tuple in CPU registers for as long as possible.
+
+- Push-based vs. Pull-based
+
+- Data Centric vs. Operator Centric
+
+Pipelined Operation example:
+
+<img title="" src="images/hyper_pipeline.png" alt="hyper" data-align="inline">
+
+Push-based execution:
+
+<img title="" src="images/hyper_push_based.png" alt="hyper" data-align="inline">
+
+Query compilation evaluation:
+
+<img title="" src="images/hyper_evaluation.png" alt="hyper" data-align="inline">
+
+##### Query Compilation cost
+
+<img title="" src="images/hyper_cost.png" alt="hyper" data-align="inline">
+
+HyPer's query compilation time grows super-linearly relative to the query size.
+
+- number of joins
+
+- number of predicates
+
+- number of aggregations
+
+Not a big issue with OLTP applications.
+
+Major problem with OLAP workloads.
+
+#### HyPer - Adaptive Execution
+
+Generate LLVM IR for the query and immediately start executing the IR using an interpreter.
+
+Then the DBMS compiles the query in the background.
+
+When the compiled query is ready, seamlessly replace the interpretive execution.
+
+- For each morsel, check to see whether the compiled version is available.
+
+<img title="" src="images/hyper_adaptive_execution.png" alt="hyper" data-align="inline">
+
+If your query is about ms, choose the `Byte Code Compiler`.
+
+Evaluation:
+
+<img title="" src="images/hyper_adaptive_eval.png" alt="hyper" data-align="inline">
+
+#### Real-world Implementations
+
+Custom:
+
+- IBM System R
+
+- Actian Vector
+
+- Amazon Redshift
+
+- Oracle
+
+- Microsoft Hekaton
+
+- SQLite
+
+- TUM Umbra
+
+JVM-based:
+
+- Apache Spark
+
+- Neo4j
+
+- Splice Machine (*dead*)
+
+- Presto / Trino
+
+LLVM-based:
+
+- SingleStore
+
+- VitesseDB
+
+- PostgreSQL
+
+- CMU Peloton (*dead*)
+
+- CMU NoisePage (*dead*)
+
+##### IBM System R
+
+A primitive form of code generation and query compilation was used by IBM in 1970s.
+
+- Compiled SQL statements into assembly code by selecting code templates for each operator.
+
+Technique was abandoned when IBM built SQL/DS and DB2 in the 1980s:
+
+- High cost of external function calls
+
+- Poor portability
+
+- Software engineer complications
+
+##### Actian Vector (VectorWise)
+
+Pre-compiles thousands of "primitives" that perform basic operations on typed data.
+
+- Example: Generate a vector of tuple ids by applying a less than operator on some column of a particular type.
+
+The DBMS then executes a query plan that invokes these primitives at runtime.
+
+- Function calls are amortized over multiple tuples
+
+##### Amazon Redshift
+
+Convert query fragments into templated C++ code.
+
+- Push-based execution with vectorization.
+
+DBMS checks whether there are already exists a compiled version of each templated fragment in the customer's local cache.
+
+If fragment does not exist in the local cache, then it checks a global cache for the **entire** fleet of Redshift customers.
+
+##### Oracle
+
+Convert PL/SQL stored procedures into **Pro*C** code and then compiled into native C/C++ code.
+
+They also put Oracle-specific operations directly in the SPARC chips as co-processors.
+
+- Memory Scans
+
+- Bit-pattern Dictionary Compression
+
+- Vectorized instructions designed for DBMSs
+
+- Security/encryption
+
+##### Mircosoft Hekaton
+
+Can compile both procedures and SQL.
+
+- Non-Hekaton queries can access Hekaton tables through compiled inter-operators.
+
+Generates C code from an imperative syntax tree, compiles it into DLL, and links at runtime.
+
+Employs safety measures to prevent somebody from injecting malicious code in a query.
+
+##### SQLite
+
+DBMS converts a query plan into opcodes, and then executes them in a custom VM (bytecode engine).
+
+- Also known as "Virtual DataBase Engine" (VDBE)
+
+- Opcode specification can change across versions.
+
+SQLite's VM ensures that queries execute the same in any possible environment.
+
+<img title="" src="images/SQLite_explain.png" alt="SQLite" data-align="inline">
+
+[The SQLite Bytecode Engine](https://www.sqlite.org/opcode.html)
+
+##### TUM Umbra
+
+Instead of implementing a separate bytecode interpreter, Umbra's "FlyingStart" adaptive execution framework generates custom IR that maps to x86 assembly in a single pass.
+
+- Manually performs dead code elimination.
+
+- The DBMS is a basically compiler.
+
+##### Apache Spark
+
+Introduced in the new Tungsten engine in 2015.
+
+The system converts a query's `WHERE` clause expression trees into Scala ASTs.
+
+It then compiles these ASTs to generate JVM bytecode, which is then executed natively.
+
+Databricks abandoned this approach with their new Photon engine in late 2010s.
+
+- Another challenge they face is they were found for complex queries they were generating giant query plans that exceeded the limit of how big the JVM will let you generate Dynamic code.
+
+- And they so would oftentimes crash because the query would show up and they try to generate code for and make it run fast. But it would be too big and therefore they had to roll back and use the interpretive plan.
+
+- So with Photon, they actually *don't do any code generation, they only do vectorization*.
+
+- And they do sort of like the `VectorWise` trick, so it's like having some stuff pre-compiled ahead of time and then stitching that together.
+
+##### JAVA Databases
+
+There are several JVM-based DBMSs that contain custom code that emits JVM bytecode directly.
+
+- Neo4j
+
+- Splice Machine
+
+- Presto / Trino
+
+- Derby
+
+This functionally the same as generating LLVM IR.
+
+##### SingleStore
+
+Pre-2016:
+
+- Performs the same C/C++ code generation as HIQUE and then invokes gcc.
+
+- Converts all queries into a parameterized form and caches the compiled query plan.
+
+2016 - Present:
+
+- A query plan is converted into an imperative plan expressed in a high-level imperative DSL.
+  
+  - MemSQL Programming Language (MPL)
+  
+  - Think of this as a C++ dialect.
+
+- DBMS then converts DSL into custom opcodes.
+  
+  - MemSQL Bit Code (MBC)
+  
+  - Think of this as JVM byte code.
+
+- Lastly, the DBMS compiles the opcodes into LLVM IR and then to native code.
+
+##### PostgreSQL
+
+Added support in 2018 (v11) for JIT compilation of predicates and tuple deserialization with LLVM.
+
+- Relies on optimizer estimates to determine when to compile expressions.
+
+Automatically compiles Postgres's back-end C code into LLVM C++ code to remove iterator calls.
+
+##### VitessedDB
+
+Query accelerator for Postgres/Greenplum that uses LLVM + intra-query parallelism.
+
+- JIT predicates
+
+- Push-based processing model
+
+- Indirect calls become direct or inlined.
+
+- Leverages hardware for overflow detection.
+
+Dose not support all of Postgres's types and functionalities. All DML operations are still interpreted.
+
+##### Peloton (2017)
+
+HyPer-stype full compilation of the entire query plan using the LLVM.
+
+Relax the pipeline breakers create mini-batches for operators that can be vectorized.
+
+Use software pre-fetching to hide memory stalls.
+
+##### CMU NoisePage (2019)
+
+SingleStore-style conversion of query plans into a database-oriented DSL.
+
+Then compile the DSL into opcodes.
+
+HyPer-stype interpretation of opcodes while compilation occurs in the background with LLVM.
+
+#### Parting Thoughts
+
+Query compilation makes a difference but is non-trivial to implement.
+
+The 2016 version of MemSQL (SingleStore) is the best query compilation implementation out there.
+
+Any new DBMS that wants to compete has to implement query compilation.
+
+---
