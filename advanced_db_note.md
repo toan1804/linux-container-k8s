@@ -2086,3 +2086,87 @@ The 2016 version of MemSQL (SingleStore) is the best query compilation implement
 Any new DBMS that wants to compete has to implement query compilation.
 
 ---
+
+### Query Vectorization vs. Compilation
+
+#### Observation
+
+Vectorization can speed up query performance.
+
+Compilation can speed up query performance.
+
+We have not discussed which approach is better and under what conditions.
+
+Switching an existing DBMS is difficult, so one must make this design decision early.
+
+##### VectorWise - PreCompiled Primitives
+
+Pre-compiles thousands of "primitives" that perform basic operations on typed data.
+
+- Using simple kernels for each primitive means that they are easier to vectorize.
+
+The DBMS then executes a query plan that invokes these primitives at runtime.
+
+- Function calls are amortized over multiple tuples.
+
+- The output of a primitive are the offsets of tuples that satisfy the predicate that the primitive represents.
+
+<img title="" src="images/pre_complied_vectorwise.png" alt="vectorwise" data-align="inline">
+
+##### HyPer - Holistic Query Compilation
+
+Compile queries in-memory into native code using the LLVM toolkit.
+
+Organizes query processing in a way to keep a tuple in CPU registers for as long as possible.
+
+- Bottom-to-top / push-based query processing model.
+
+- Not vectorizable (as originally described).
+
+<img title="" src="images/hyper_holistic_query_compilation.png" alt="hyper" data-align="inline">
+
+#### Vectorization vs. Compilation
+
+Test-bed system to analyze the trade-offs between vectorized execution and query compilation.
+
+Implemented high-level algorithms the same in each system but varied the implementation details based on system architecture.
+
+- Example: Hash join algorithm is the same, but the systems use different hash functions (Murmur2 vs. CRC32x2)
+
+##### Implementations
+
+**Approach #1: Tectorwise**
+
+- Break operations into pre-compiled primitives.
+
+- Must materialize the output of primitives at each step.
+
+**Approach #2: Typer**
+
+- Push-based processing model with JIT compilation.
+
+- Process a single tuple up entire pipeline without materializing the intermediate results.
+
+Both models are efficient and achieve roughly the same performance.
+
+- 100x faster than row-oriented DBMSs!
+
+**Data-centric (code generation) is better for "calculation-heavy" queries with few cache misses.**
+
+**Vectorization is slightly better at hiding cache miss latencies.**
+
+#### Auto-Vectorization
+
+Evaluate how well the compiler can automatically vectorize the Vectorwise primitives.
+
+ICC was able to vectorise the most primitives using AVX-512:
+
+- Vectorized: Hashing, Selection, Projection
+
+- Not Vectorized: Hash Table Probing, Aggregation
+
+##### Parting Thoughts
+
+No major performance difference between the Vectorwise and HyPer approaches for all queries.
+
+---
