@@ -2170,3 +2170,380 @@ ICC was able to vectorise the most primitives using AVX-512:
 No major performance difference between the Vectorwise and HyPer approaches for all queries.
 
 ---
+
+### Parallel Hash Join Algorithms
+
+#### Observation
+
+Many OLTP DBMSs do not implement hash join.
+
+But an **index nested-loop join** is conceptually equivalent to a hash join.
+
+- Index NL joins typically means using an existing B+Tree.
+
+- Hash join will build a hash table (index) on the fly and then discard immediately after the operation is complete.
+
+#### Join Algorithm Design Goals
+
+These goals matter whether the DBMS is using a **hardware-conscious** vs. **hardware-oblivious** algorithm for joins.
+
+**Goal #1: Minimize Synchronization**
+
+- Avoid taking latches during execution.
+
+**Goal #2: Minimize Memory Access Cost**
+
+- Ensure that data is always local to worker thread.
+
+- Reuse data while it exists in CPU cache.
+
+##### Improving Cache Behavior
+
+Factors that affect cache misses in a DBMS:
+
+- Cache + TLB capacity. (TLB: Translation Lookaside Buffer)
+
+- Locality (temporal and spatial).
+
+**Non-Random Access (Scan):**
+
+- Clustering data to a cache line.
+
+- Execute more operations per cache line.
+
+**Random Access (Lookups):**
+
+- Partition data to fit in cache +TLB.
+
+#### Parallel Hash Joins
+
+Hash join is one of the most important operators in a DBMS for OLAP workloads.
+
+- But it is still not the dominant cost.
+
+It is important that we speed up our DBMS's join algorithm by taking advantage of multiple cores.
+
+- We want to keep all cores busy, without becoming memory bound.
+
+#### Hash Join (R join S)
+
+**Phase #1: Partition (optional)**
+
+- Divide the tuples of **R** and **S** into disjoint subsets using a hash function on the join key.
+
+**Phase #2: Build**
+
+- Scan relation **R** and create a hash table on join key.
+
+**Phase #3: Probe**
+
+- For each tuple in **S**, look up its join key in hash table for **R**. If a match is found, output combined tuple.
+
+##### Partitioning Phase
+
+**Approach #1: Implicit Partitioning**
+
+- The data was partitioned on the join key when it was loaded into the database.
+
+- No extra pass over the data is needed.
+
+**Approach #2: Explicit Partitioning**
+
+- Divide only outer relation and redistribute among the different CPU cores.
+
+- Can use the same radix partitioning approach.
+
+Split the input relations into partitioned buffers by hashing the tuple's join key(s).
+
+- Ideally the cost of partitioning is less than the cost of cache misses during build phase.
+
+- Sometimes called ***Grace Hash Join / Radix Hash Join.***
+
+Contents of buffers depends on storage model:
+
+- **NSM**: Usually the entire tuple.
+
+- **DSM**: Only the columns needed for the join + offset.
+
+**Approach #1: Non-Blocking Partitioning**
+
+- Only scan the input relation once.
+
+- Produce output incrementally and let other threads build hash table at the same time.
+
+**Approach #2: Blocking Partitioning (Radix)**
+
+- Scan the input relation multiple times.
+
+- Only materialize results all at once.
+
+- Sometimes called ***radix hash join***.
+
+##### Non-blocking Partitioning
+
+Scan the input relation only once and generate the output on-the-fly.
+
+**Approach #1: Shared Partitions**
+
+- Single global set of partitions that all threads update.
+
+- Must use a latch to synchronize threads.
+  
+  <img title="" src="images/shared_partition.png" alt="partition" data-align="inline">
+
+**Approach #2: Private Partitions**
+
+- Each thread has its own set of partitions.
+
+- Must consolidate them after all threads finish.
+  
+  <img title="" src="images/private_partitions.png" alt="partition" data-align="inline">
+
+##### Radix Partitioning
+
+Scan the input relation multiple times to generate the partitions.
+
+Two-pass algorithm:
+
+- **Step #1:** Scan **R** and compute a histogram of the # of tuples per hash key for the radix at some offset.
+
+- **Step #2:** Use the histogram to determine per-thread output offsets by computing the **prefix sum**.
+
+- **Step #3:** Scan **R** again and partition them according to the hash key.
+
+###### RADIX
+
+The radix of a key is the value of an integer at a position (using its base).
+
+- Efficient to compute with bitshifting + multiplication.
+
+<img title="" src="images/radix.png" alt="radix" data-align="inline">
+
+Compute radix for each key and populate histogram of counts per radix.
+
+<img title="" src="images/radix_histogram.png" alt="radix" data-align="inline">
+
+###### Prefix Sum
+
+The prefix sum of a sequence of numbers (x0, x1, ..., xn) is a second sequence of numbers (y0, y1, ..., yn) that is a running total of the input sequence.
+
+<img title="" src="images/prefix_sum_init.png" alt="prefix sum" data-align="inline">
+
+<img title="" src="images/prefix_sum_end.png" alt="prefix sum" data-align="inline">
+
+###### Radix Partitions
+
+<img title="" src="images/radix_partition_step1.png" alt="radix" data-align="inline">
+
+<img title="" src="images/radix_partition_step2.png" alt="radix" data-align="inline">
+
+<img title="" src="images/radix_partition_step3.png" alt="radix" data-align="inline">
+
+<img title="" src="images/radix_partition_step4.png" alt="radix" data-align="inline">
+
+###### Optimizations
+
+**Software Write Combine Buffers:**
+
+- Each worker maintains local output buffer to stage writes.
+
+- When buffer full, write changes to global partition.
+
+- Similar to private partitions but without a separate write phase at the end.
+
+**Non-temporal Streaming Writes**
+
+- Workers write data to global partition memory using streaming instructions to bypass CPU caches.
+
+##### Build Phase
+
+The threads are then to scan either the tuples (or partitions) of **R**.
+
+For each tuple, hash the join key attribute for that tuple and add it to the appropriate bucket in the hash table.
+
+- The buckets should only be a few cache lines in size.
+
+###### Hash Tables
+
+**Design Decision #1: Hash Function**
+
+- How to map a large key space into a smaller domain.
+
+- Trade-off between being fast vs. collision rate.
+
+**Design Decision #2: Hashing Scheme**
+
+- How to handle key collisions after hashing.
+
+- Trade-off between allocating a large hash table vs. additional instructions to find/insert keys.
+
+###### Hash Functions
+
+We do not want to use a cryptographic hash function for our join algorithm.
+
+We want something that is fast and will have a low collision rate.
+
+- **Best Speed:** Always return '**1**'
+
+- **Best Collision Rate:** Perfect hashing
+
+Some Hash functions:
+
+- CRC-64: Used in networking for error detection.
+
+- MurmurHash: Designed to a fast, general purpose hash function.
+
+- Google CityHash: Designed to be fast for short keys (<64 bytes).
+
+- Facebook XXHash: From the creator of zstd compression.
+
+- Google FarmHash: Newer version of CityHash with better collision rates.
+
+<img title="" src="images/hash_function_benchmark.png" alt="hash" data-align="inline">
+
+###### Hashing Schemes
+
+**Approach #1: Chained Hashing**
+
+- Maintain a linked list of `buckets` for each slot in the hash table.
+
+- Resolve collisions by placing all elements with the same hash key into the same bucket.
+  
+  - To determine whther an element is present, hash to its bucket and scan for it.
+  
+  - Insertions and deletions are generalizations of lookups.
+  
+  <img title="" src="images/chained_hashing_init.png" alt="hash" data-align="inline">
+  
+  When slot of key **D** in the `Buckets` are occupied, just extend the chain for the location of D:
+  
+  <img title="" src="images/chained_hashing_extend.png" alt="hash" data-align="inline">
+  
+  An optimization that HyPer database does is they use a change hash table. For the pointers that they're storing in `hash(key)` (input) and betweens `Buckets`, they actually store the memory address which is actually only 48 bits in x86 and then they use the remaining 16 bits for a bloom filter to tell you whether the key you want is in there.
+  
+  *Fact: The hardware only uses the first 48 bits to store memory address. [x86 64 - Why do x86-64 systems have only a 48 bit virtual address space? - Stack Overflow](https://stackoverflow.com/a/6716976/14894585)*
+  
+  <img title="" src="images/chained_hashing_hyper.png" alt="hash" data-align="inline">
+
+**Approach #2: Linear Probe Hashing**
+
+- Single giant table of slots.
+
+- Resolve collisions by linearly searching for the next free slot in the table.
+  
+  - To determine whether an element is present, hash to a location in the table and scan for it.
+  
+  - Must store the key in the table to know when to stop scanning.
+  
+  - Insertions and deletions are generalizations of lookups.
+  
+  <img title="" src="images/linear_probe_hashing_init.png" alt="hash" data-align="inline">
+  
+  When collision are happen between A and C, select the next free slot in the table and move C to that:
+  
+  <img title="" src="images/linear_probe_hashing_collision.png" alt="hash" data-align="inline">
+  
+  Observation:
+  
+  - To reduce the number of wasteful comparisons during the build/probe phases, it is important to avoid collisions of hashed keys.
+  
+  - This requires a hash table with ~2x the number of slots as the number of elements in **R**.
+
+**Approach #3: Robin Hood Hashing**
+
+- Variant of linear probe hashing that steals slots from "rich" keys and give them to "poor" keys.
+  
+  - Each key tracks the number of positions they are from where its optimal position in the table.
+  
+  - On insert, a key takes the slot of another key if the first key is farther away from its optimal position than the second key.
+
+**Approach #4: Hopscotch Hashing**
+
+- Variant of linear probe hashing where keys can move between positions in a **neighborhood**.
+  
+  - A neighborhood is contiguous range of slots in the table.
+  
+  - The size of a neighborhood is a configurable constant (ideally a single cache-line).
+  
+  - A key is guaranteed to be in its neighborhood or not exist in the table.
+
+- The goal is to have the cost of accessing a neighborhood to be the same as finding a key.
+
+**Approach #5: Cuckoo Hashing**
+
+- Use multiple tables with different hash functions.
+  
+  - On insert, check every table and pick anyone that has a free slot.
+  
+  - If no table has a free slot, evict the element from one of them and then re-hash it find a new location.
+
+- Look-ups are always O(1) because only one location per hash table is checked.
+  
+  <img title="" src="images/cuckoo_hashing_init.png" alt="hash" data-align="inline">
+  
+  When Y' location from hash_function 1 is taken by X, compute hash Y in hash table 2:
+  
+  <img title="" src="images/cuckoo_hashing_choose_another_location.png" alt="hash" data-align="inline">
+  
+  When compute hash of `Z`, two `Hash Table` location are taken by `X` and `Y`, hash(Z) that take location of `Y`:
+  
+  ![hash](images/cuckoo_hashing_2_choice_are_taken.png)
+  
+  Recompute `Y` and take location of `X`:
+  
+  <img title="" src="images/cuckoo_hashing_choose_hash_2_re_hash_Y.png" alt="hash" data-align="inline">
+  
+  Recompute `X` and we have a new location for `X` in `Hash Table #2`:
+  
+  <img title="" src="images/cuckoo_hashing_choose_hash_table1_re_hash_X.png" alt="hash" data-align="inline">
+
+##### Probe Phase
+
+For each tuple in `S`, hash its join key and check to see whether there is a match for each tuple in corresponding bucket in the hash table constructed for `R`.
+
+- If inputs were partitioned, then assign each thread a unique partition.
+
+- Otherwise, synchronize their access to the cursor of `S`.
+
+###### Probe Phase - Bloom Filter
+
+Create a Bloom Filter during the build phase when the key is likely to not exist in the hash table.
+
+- Threads check the filter before probing the hash table. This will be faster since the filter will fit in CPU caches.
+
+- Sometimes called ***sideways information passing.***
+
+##### Hash Join Variants
+
+|                          | ***No-P*** | ***Shared-P***     | ***Private-P***      | ***Radix***         |
+| ------------------------ | ---------- | ------------------ | -------------------- | ------------------- |
+| Partitioning             | No         | Yes                | Yes                  | Yes                 |
+| Input scans              | 0          | 1                  | 1                    | 2                   |
+| Sync during partitioning | -          | Spinlock per tuple | Barrier, once at end | Barrier, 4. #passes |
+| Hash table               | Shared     | Private            | Private              | Private             |
+| Sync during build phase  | Yes        | No                 | No                   | No                  |
+| Sync during probe phase  | No         | No                 | No                   | No                  |
+
+##### Benchmarks
+
+Implemented multiple variants of hash join algorithms based on previous literature and compare unoptimized vs. optimized versions.
+
+Core approaches:
+
+- No Partitioning Hash Join
+
+- Concise Hash Table Join
+
+- 2-pass Radix Hash Join (Chained vs. Linear)
+
+<img title="" src="images/hash_join_perf.png" alt="hash" data-align="inline">
+
+<img title="" src="images/hash_join_runtime_perf.png" alt="hash" data-align="inline">
+
+##### Parting Thoughts
+
+Partitioned-based joins outperform no-partitioning algorithms in most settings, but it is non-trivial to tune it correctly.
+
+AFAIK, every DBMS vendor picks one hash join implementation and does not try to be adaptive.
+
+---
