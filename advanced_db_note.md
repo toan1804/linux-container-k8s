@@ -2547,3 +2547,243 @@ Partitioned-based joins outperform no-partitioning algorithms in most settings, 
 AFAIK, every DBMS vendor picks one hash join implementation and does not try to be adaptive.
 
 ---
+
+### Parallel Sort-Merge Join Algorithms
+
+#### Sort-Merge Join (R join S)
+
+**Phase #1: Sort**
+
+- Sort the tuples of **R** and **S** based on the join key(s).
+
+**Phase #2: Merge**
+
+- Maintain two iterators (one per sorted relation) and compare tuples at each position.
+
+- The outer relation **R** only needs to be scanned once.
+
+##### Parallel Sort-Merge Joins
+
+Sorting is the most expensive part.
+
+Use hardware correctly to speed up the join algorithm as much as possible.
+
+- Utilize as many CPU cores as possible.
+
+- Be mindful of NUMA boundaries.
+
+- Use SIMD instructions where applicable.
+
+**Phase #1: Partitioning (optional)**
+
+- Partition **R** and assign them to workers/cores.
+
+- Can use the radix partitioning approach.
+
+**Phase #2: Sort**
+
+- Sort the tuples of **R** and **S** based on the join key.
+
+**Phase #3: Merge**
+
+- Scan the sorted relations and compare tuples.
+
+- The outer relation **R** only needs to be scanned once.
+
+##### Sort Phase
+
+Quicksort is probably what most DBMSs will use. Mergesort is good but requires O(N) additional storage for intermediate results.
+
+##### Cache-Conscious Sorting
+
+**Level #1: In-Register Sorting**
+
+- Sort runs that fit into CPU registers.
+
+**Level #2: In-Cache Sorting**
+
+- Merge Level #1 output into runs that fit into CPU caches.
+
+- Repeat until sorted runs are 1/2 cache size.
+
+**Level #3: Out-of-Cache Sorting**
+
+- Used when the runs of Level #2 exceed the size of caches.
+
+<img title="" src="images/sort_level_join_sql.png" alt="sort" data-align="inline">
+
+##### Level #1 - Sorting Networks
+
+Abstract model for sorting keys.
+
+- Fixed wiring "paths" for lists with the same # of elements.
+
+- Efficient to execute on modern CPUs because of limited data dependencies and no branches.
+
+Example:
+
+<img title="" src="images/sorting_network_exp_step1.png" alt="sort" data-align="inline">
+
+<img title="" src="images/sorting_network_exp_step2.png" alt="sort" data-align="inline">
+
+<img title="" src="images/sorting_network_exp_step3.png" alt="sort" data-align="inline">
+
+pseudocode:
+
+<img title="" src="images/sorting_network_exp_all.png" alt="sort" data-align="inline">
+
+The above example is showing just single key values but in actuality this would be a 64-bit Join Key and a 64-bit Tuple Pointer:
+
+<img title="" src="images/sorting_network_exp_with_64bit_join_key.png" alt="sort" data-align="inline">
+
+##### Level #2 - Bitonic Merge Network
+
+Similar technique as a Sorting Network but merges two locally-sorted lists into a globally-sorted list.
+
+Can expand network to merge progressively larger lists up to 1/2 LLC size.
+
+Intel's Measurements:
+
+- 2.25-3.5x speed-up over SISD implementation.
+
+<img title="" src="images/bitonic_merge_network_example.png" alt="sort" data-align="inline">
+
+##### Level #3 - Multi-way Merging
+
+Use the Bitonic Merge Networks but split the process up into tasks.
+
+- Still one worker thread per core.
+
+- Link together tasks with a cache-sized FIFO queue.
+
+A task blocks when either its input queue is empty, or its output queue is full.
+
+Requires more CPU instructions but brings bandwidth and compute into balance.
+
+<img title="" src="images/multi-way_merging_level3.png" alt="sort" data-align="inline">
+
+##### In-Place SuperScalar SampleSort
+
+The IPS4o algorithm (2017) recursively partition relation by sampling keys to determine partition boundaries.
+
+- Copies data into output buffers during the partitioning phases.
+
+- When a buffer gets full, the DBMS writes it back into portions of its existing input buffers instead of allocating a new buffer.
+
+Fastest sorting algorithm in 2017
+
+##### Vectorized QuickSort
+
+[Google vqsort](https://opensource.googleblog.com/2022/06/Vectorized%20and%20performance%20portable%20Quicksort.html) (2022)
+
+- Use sorting network for less than 256 keys.
+
+- Based on Google Highway library to provide support for different ISAs and SIMD register sizes.
+
+- Claims to be 1.59x faster than IPS4o.
+
+[Intel x86-simd-sort](https://github.com/intel/x86-simd-sort) (2022)
+
+- Aggressive use of AVX512 instructions.
+
+#### Merge Phase
+
+Iterate through the outer table and inner table in lockstep and compare join keys.
+
+May need to backtrack if there are duplicates.
+
+The DBMS can execute the phase in parallel using multiple workers without synchronization if there are separate output buffers.
+
+#### Sort-Merge Join Variants
+
+**Multi-Way Sort-Merge (M-WAY)**
+
+**Multi-Pass Sort-Merge (M-PASS)**
+
+**Massively Parallel Sort-Merge (MPSM)**
+
+##### Multi-Way Sort-Merge
+
+**Outer Table**
+
+- Each core sorts in parallel on local data (levels #1/#2).
+
+- Redistribute sorted runs across cores using range partitioning then perform `multi-way merge` (level #3).
+
+**Inner Table**
+
+- Same as outer table.
+
+Merge phase is between matching pairs of chunks of outer/inner tables at each core.
+
+<img title="" src="images/multi-way_sort_merge_init.png" alt="sort" data-align="inline">
+
+<img title="" src="images/multi-way_sort_merge_merge.png" alt="sort" data-align="inline">
+
+<img title="" src="images/multi-way_sort_merge_out.png" alt="sort" data-align="inline">
+
+<img title="" src="images/multi-way_sort_merge_all.png" alt="sort" data-align="inline">
+
+##### Multi-Pass Sort-Merge
+
+**Outer Table**
+
+- Same level #1/#2 sorting as previous Multi-Way Merge.
+
+- But instead of redistributing data across cores, perform a global `multi-pass naive merge` on sorted runs.
+
+**Inner Table**
+
+-  Same as outer table.
+
+Merge phase is between matching pairs of chunks of outer table and inner table.
+
+<img title="" src="images/multi-pass_sort_merge_all.png" alt="sort" data-align="inline">
+
+##### Massively Parallel Sort-Merge
+
+**Outer Table**
+
+- Range-partition outer table and redistribute to cores.
+
+- Each core sorts then in parallel on their local partitions.
+
+**Inner Table**
+
+- Not redistributed like outer table.
+
+- Each core sorts its local data.
+
+Merge phase is between entire sorted run of outer table and a segment of inner table.
+
+<img title="" src="images/massively_parallel_sort_merge_all.png" alt="sort" data-align="inline">
+
+#### Hyper's Rules For Parallelization
+
+**Rule #1: No random writes to non-local memory**
+
+- Chunk the data, redistribute, and  then each core sorts/works on local data.
+
+**Rule #2: Only perform sequential reads on non-local memory**
+
+- This allows the hardware prefetcher to hide remote access latency.
+
+**Rule #3: No core should ever wait for another**
+
+- Avoid fine-grained latching or sync barriers.
+
+#### Comparison of Sort-Merge joins
+
+<img title="" src="images/perf_sort_merge.png" alt="sort" data-align="inline">
+
+<img title="" src="images/perf_sort_merge_mway_mpsm.png" alt="sort" data-align="inline">
+
+<img title="" src="images/perf_sort_merge_vs_hash_join.png" alt="sort" data-align="inline">
+
+<img title="" src="images/perf_sort_merge_vs_hash_join_vary.png" alt="sort" data-align="inline">
+
+<img title="" src="images/perf_sort_merge_vs_hash_join_varies.png" alt="sort" data-align="inline">
+
+Hash join is (almost always) the superior choice for a join algorithm on modern hardware.
+
+---
